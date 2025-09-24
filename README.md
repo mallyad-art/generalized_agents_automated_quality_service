@@ -1,6 +1,4 @@
-# generalized_agents_automated_quality_service
-=======
-# Google Sheets Web Viewer
+# Generalized Agents: Automated Quality Service Dashboard
 
 A lightweight FastAPI application that transforms any Google Sheet into a searchable, paginated web interface. Perfect for sharing spreadsheet data without giving direct access to your Google Sheets.
 
