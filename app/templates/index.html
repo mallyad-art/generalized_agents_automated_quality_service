@@ -170,14 +170,53 @@
     </div>
     {% endif %}
 
-    <!-- Grouping Controls -->
-    <div class="grouping-controls">
-      <h3>Time-based Grouping (Optional)</h3>
+    <!-- Deduplication Controls -->
+    <div class="grouping-controls" style="background: #f0f8ff;">
+      <h3>🔄 De-duplicate Rows (Optional)</h3>
       <form method="get" action="/">
         <input type="hidden" name="q" value="{{ q }}">
         <input type="hidden" name="page_size" value="{{ page_size }}">
         <input type="hidden" name="page" value="1">
         <input type="hidden" name="sheet" value="{{ current_sheet }}">
+        <input type="hidden" name="group_by_period" value="{{ group_by_period }}">
+        <input type="hidden" name="timestamp_column" value="{{ timestamp_column }}">
+
+        <div class="toolbar-row">
+          <select name="dedupe_field">
+            <option value="">Select field to deduplicate by</option>
+            {% for col in all_columns %}
+            <option value="{{ col }}" {% if dedupe_field==col %}selected{% endif %}>{{ col }}</option>
+            {% endfor %}
+          </select>
+
+          <select name="dedupe_timestamp">
+            <option value="">Select timestamp field (keep latest)</option>
+            {% for col in timestamp_columns %}
+            <option value="{{ col }}" {% if dedupe_timestamp==col %}selected{% endif %}>{{ col }}</option>
+            {% endfor %}
+          </select>
+
+          <button type="submit" id="apply-dedupe-btn">Apply Deduplication</button>
+
+          {% if deduplicated %}
+          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}" class="clear-grouping"
+            style="padding: 6px 10px; border-radius: 4px;">Clear Deduplication</a>
+          {% endif %}
+        </div>
+        <div id="dedupe-validation-info" class="validation-info" style="display: none;"></div>
+      </form>
+    </div>
+
+    <!-- Grouping Controls -->
+    <div class="grouping-controls">
+      <h3>📊 Time-based Grouping (Optional)</h3>
+      <form method="get" action="/">
+        <input type="hidden" name="q" value="{{ q }}">
+        <input type="hidden" name="page_size" value="{{ page_size }}">
+        <input type="hidden" name="page" value="1">
+        <input type="hidden" name="sheet" value="{{ current_sheet }}">
+        <input type="hidden" name="dedupe_field" value="{{ dedupe_field }}">
+        <input type="hidden" name="dedupe_timestamp" value="{{ dedupe_timestamp }}">
 
         <div class="toolbar-row">
           <select name="group_by_period">
@@ -193,10 +232,10 @@
             {% endfor %}
           </select>
 
-          <button type="submit" id="apply-grouping-btn">Apply</button>
+          <button type="submit" id="apply-grouping-btn">Apply Grouping</button>
 
           {% if grouped %}
-          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}" class="clear-grouping"
+          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}" class="clear-grouping"
             style="padding: 6px 10px; border-radius: 4px;">Clear Grouping</a>
           {% endif %}
         </div>
@@ -208,6 +247,8 @@
     <form class="toolbar" method="get" action="/">
       <input type="hidden" name="group_by_period" value="{{ group_by_period }}">
       <input type="hidden" name="timestamp_column" value="{{ timestamp_column }}">
+      <input type="hidden" name="dedupe_field" value="{{ dedupe_field }}">
+      <input type="hidden" name="dedupe_timestamp" value="{{ dedupe_timestamp }}">
       <input type="hidden" name="page" value="1">
       <input type="hidden" name="sheet" value="{{ current_sheet }}">
 
@@ -223,9 +264,17 @@
     <!-- Status Information -->
     {% if error_message %}
     <div class="status-info" style="background: #ffebee; color: #c62828; border-left: 4px solid #f44336;">
-      ❌ Grouping Error: {{ error_message }}
+      ❌ Processing Error: {{ error_message }}
     </div>
-    {% elif grouped %}
+    {% endif %}
+    
+    {% if deduplicated %}
+    <div class="status-info" style="background: #e8f5e8; color: #2e7d32; border-left: 4px solid #4caf50;">
+      🔄 Data deduplicated by "{{ dedupe_field }}" keeping latest by "{{ dedupe_timestamp }}" - {{ duplicates_removed }} duplicates removed ({{ original_count }} → {{ total }} rows)
+    </div>
+    {% endif %}
+    
+    {% if grouped %}
     <div class="status-info">
       📊 Data grouped by {{ group_by_period }} using column "{{ timestamp_column }}"
     </div>
@@ -238,7 +287,7 @@
     </div>
     {% endif %}
 
-    <div>{{ total }} rows{% if grouped %} (grouped){% endif %}{% if q and q.strip() %} matching "{{ q }}"{% endif %}</div>
+    <div>{{ total }} rows{% if deduplicated %} (deduplicated){% endif %}{% if grouped %} (grouped){% endif %}{% if q and q.strip() %} matching "{{ q }}"{% endif %}</div>
 
     <table>
       <thead>
@@ -265,6 +314,8 @@
         <input type="hidden" name="page_size" value="{{ page_size }}">
         <input type="hidden" name="group_by_period" value="{{ group_by_period }}">
         <input type="hidden" name="timestamp_column" value="{{ timestamp_column }}">
+        <input type="hidden" name="dedupe_field" value="{{ dedupe_field }}">
+        <input type="hidden" name="dedupe_timestamp" value="{{ dedupe_timestamp }}">
         <input type="hidden" name="sheet" value="{{ current_sheet }}">
         <button name="page" value="{{ 1 }}" {% if page==1 %}disabled{% endif %}>&laquo; First</button>
         <button name="page" value="{{ page - 1 }}" {% if page <=1 %}disabled{% endif %}>Prev</button>
@@ -276,12 +327,17 @@
   </div>
 
   <script>
-    // Client-side validation for timestamp columns
+    // Client-side validation for timestamp columns and deduplication
     document.addEventListener('DOMContentLoaded', function () {
+      // Grouping validation
       const timestampSelect = document.querySelector('select[name="timestamp_column"]');
       const periodSelect = document.querySelector('select[name="group_by_period"]');
       const validationInfo = document.getElementById('validation-info');
-      const applyBtn = document.getElementById('apply-grouping-btn');
+      
+      // Deduplication validation
+      const dedupeFieldSelect = document.querySelector('select[name="dedupe_field"]');
+      const dedupeTimestampSelect = document.querySelector('select[name="dedupe_timestamp"]');
+      const dedupeValidationInfo = document.getElementById('dedupe-validation-info');
 
       function validateTimestampColumn() {
         const column = timestampSelect.value;
@@ -316,13 +372,59 @@
           });
       }
 
-      // Validate when timestamp column or period changes
-      timestampSelect.addEventListener('change', validateTimestampColumn);
-      periodSelect.addEventListener('change', validateTimestampColumn);
+      function validateDedupeTimestampColumn() {
+        const dedupeField = dedupeFieldSelect.value;
+        const timestampField = dedupeTimestampSelect.value;
 
-      // Initial validation if values are already selected
-      if (timestampSelect.value && periodSelect.value) {
-        validateTimestampColumn();
+        if (!dedupeField || !timestampField) {
+          dedupeValidationInfo.style.display = 'none';
+          return;
+        }
+
+        // Show loading state
+        dedupeValidationInfo.className = 'validation-info validation-warning';
+        dedupeValidationInfo.textContent = 'Validating deduplication timestamp column...';
+        dedupeValidationInfo.style.display = 'block';
+
+        // Validate the timestamp column
+        const currentSheet = document.querySelector('input[name="sheet"]')?.value || '';
+        fetch(`/api/validate-timestamp?column=${encodeURIComponent(timestampField)}&sheet=${encodeURIComponent(currentSheet)}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.valid) {
+              dedupeValidationInfo.className = 'validation-info validation-success';
+              dedupeValidationInfo.textContent = `✓ Ready to deduplicate by "${dedupeField}" keeping latest by "${timestampField}"`;
+            } else {
+              dedupeValidationInfo.className = 'validation-info validation-error';
+              dedupeValidationInfo.textContent = `✗ ${data.message}`;
+            }
+          })
+          .catch(error => {
+            dedupeValidationInfo.className = 'validation-info validation-error';
+            dedupeValidationInfo.textContent = 'Error validating timestamp column';
+          });
+      }
+
+      // Validate when timestamp column or period changes
+      if (timestampSelect && periodSelect) {
+        timestampSelect.addEventListener('change', validateTimestampColumn);
+        periodSelect.addEventListener('change', validateTimestampColumn);
+
+        // Initial validation if values are already selected
+        if (timestampSelect.value && periodSelect.value) {
+          validateTimestampColumn();
+        }
+      }
+
+      // Validate when deduplication fields change
+      if (dedupeFieldSelect && dedupeTimestampSelect) {
+        dedupeFieldSelect.addEventListener('change', validateDedupeTimestampColumn);
+        dedupeTimestampSelect.addEventListener('change', validateDedupeTimestampColumn);
+
+        // Initial validation if values are already selected
+        if (dedupeFieldSelect.value && dedupeTimestampSelect.value) {
+          validateDedupeTimestampColumn();
+        }
       }
     });
   </script>

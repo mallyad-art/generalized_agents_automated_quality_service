@@ -224,6 +224,47 @@ def group_by_time_period(df, timestamp_col, period):
     
     return grouped
 
+def deduplicate_by_field(df, dedupe_field, timestamp_field):
+    """Deduplicate dataframe by keeping the latest row for each unique value in dedupe_field"""
+    if dedupe_field not in df.columns:
+        raise ValueError(f"Deduplication field '{dedupe_field}' not found in the data")
+    
+    if timestamp_field not in df.columns:
+        raise ValueError(f"Timestamp field '{timestamp_field}' not found in the data")
+    
+    # Validate timestamp column
+    is_valid, message = validate_timestamp_column(df, timestamp_field)
+    if not is_valid:
+        raise ValueError(message)
+    
+    # Parse timestamps
+    df = df.copy()
+    df['_parsed_timestamp'] = df[timestamp_field].apply(parse_timestamp)
+    
+    # Filter out rows where timestamp couldn't be parsed
+    original_count = len(df)
+    df_with_timestamps = df[df['_parsed_timestamp'].notna()]
+    parsed_count = len(df_with_timestamps)
+    
+    if parsed_count == 0:
+        raise ValueError(f"No valid timestamps found in column '{timestamp_field}'")
+    
+    # Log how many rows were filtered out due to invalid timestamps
+    if parsed_count < original_count:
+        print(f"Warning: {original_count - parsed_count} rows filtered out due to invalid timestamps")
+    
+    # Sort by timestamp (latest first) and drop duplicates keeping the first (latest) occurrence
+    df_sorted = df_with_timestamps.sort_values('_parsed_timestamp', ascending=False)
+    df_deduped = df_sorted.drop_duplicates(subset=[dedupe_field], keep='first')
+    
+    # Remove the temporary timestamp column and sort by original order or timestamp
+    df_deduped = df_deduped.drop(columns=['_parsed_timestamp'])
+    df_deduped = df_deduped.sort_values(timestamp_field, ascending=False)
+    
+    duplicates_removed = original_count - len(df_deduped)
+    
+    return df_deduped, duplicates_removed
+
 def load_sheet_df(sheet_name: str = None):
     """Load dataframe for a specific sheet"""
     # Default to first sheet if none specified
@@ -261,6 +302,8 @@ def api_data(
     page_size: int = PAGE_SIZE_DEFAULT,
     group_by_period: Optional[str] = None,
     timestamp_column: Optional[str] = None,
+    dedupe_field: Optional[str] = None,
+    dedupe_timestamp: Optional[str] = None,
     sheet: Optional[str] = None
 ):
     # Load original data for specified sheet
@@ -271,20 +314,37 @@ def api_data(
     
     error_message = None
     grouped = False
+    deduplicated = False
+    duplicates_removed = 0
+    original_count = len(df)
+    
+    # Apply deduplication first if both parameters are provided
+    if dedupe_field and dedupe_field.strip() and dedupe_timestamp and dedupe_timestamp.strip():
+        try:
+            df, duplicates_removed = deduplicate_by_field(df, dedupe_field, dedupe_timestamp)
+            deduplicated = True
+        except ValueError as e:
+            error_message = str(e)
+            # Keep original data when deduplication fails
+            df = load_sheet_df(sheet)  # Reset to original data
     
     # Apply grouping if both parameters are provided and valid (grouping is optional)
+    # Note: grouping after deduplication if both are applied
     if group_by_period and group_by_period.strip() and timestamp_column and timestamp_column.strip():
         # Validate group_by_period value
         if group_by_period not in ["day", "week"]:
-            error_message = f"Invalid grouping period '{group_by_period}'. Must be 'day' or 'week'"
+            if not error_message:  # Don't overwrite deduplication errors
+                error_message = f"Invalid grouping period '{group_by_period}'. Must be 'day' or 'week'"
         else:
             try:
                 df = group_by_time_period(df, timestamp_column, group_by_period)
                 grouped = True
             except ValueError as e:
-                error_message = str(e)
-                # Keep original data when grouping fails
-                df = load_sheet_df(sheet)  # Reset to original data
+                if not error_message:  # Don't overwrite deduplication errors
+                    error_message = str(e)
+                # Keep current data when grouping fails (might be deduplicated data)
+                if not deduplicated:
+                    df = load_sheet_df(sheet)  # Reset to original data only if not deduplicated
     
     # Apply search filter (works on both grouped and ungrouped data)
     if q and q.strip():
@@ -313,6 +373,9 @@ def api_data(
         "pages": int(math.ceil(total / page_size)) if page_size else 1,
         "rows": rows,
         "grouped": grouped,
+        "deduplicated": deduplicated,
+        "duplicates_removed": duplicates_removed,
+        "original_count": original_count,
         "search_term": search_term
     }
     
@@ -359,6 +422,62 @@ def validate_timestamp_endpoint(column: str, sheet: Optional[str] = None):
         "column": column
     })
 
+@app.get("/api/deduplicate")
+def api_deduplicate(
+    dedupe_field: str,
+    timestamp_field: str,
+    q: Optional[str] = None,
+    page: int = 1,
+    page_size: int = PAGE_SIZE_DEFAULT,
+    sheet: Optional[str] = None
+):
+    """Deduplicate data by field, keeping latest row by timestamp"""
+    try:
+        df = load_sheet_df(sheet)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    
+    try:
+        # Apply deduplication
+        df_deduped, duplicates_removed = deduplicate_by_field(df, dedupe_field, timestamp_field)
+        
+        # Apply search filter after deduplication
+        if q and q.strip():
+            qlow = q.strip().lower()
+            df_deduped = df_deduped[df_deduped.apply(lambda r: any(qlow in str(v).lower() for v in r), axis=1)]
+        
+        # Pagination
+        total = len(df_deduped)
+        start = max((page - 1) * page_size, 0)
+        end = start + page_size
+        page_df = df_deduped.iloc[start:end] if total else df_deduped
+        
+        # Process rows for API response (with highlighting if requested)
+        rows = page_df.to_dict(orient="records")
+        search_term = q.strip() if q and q.strip() else None
+        if search_term:
+            for row in rows:
+                for col in row:
+                    if row[col] is not None:
+                        row[col] = process_cell_content(row[col], search_term)
+        
+        return JSONResponse({
+            "total": int(total),
+            "page": int(page),
+            "page_size": int(page_size),
+            "pages": int(math.ceil(total / page_size)) if page_size else 1,
+            "rows": rows,
+            "deduplicated": True,
+            "duplicates_removed": duplicates_removed,
+            "original_count": len(df),
+            "dedupe_field": dedupe_field,
+            "timestamp_field": timestamp_field,
+            "search_term": search_term
+        })
+        
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
 @app.get("/", response_class=HTMLResponse)
 def index(
     request: Request, 
@@ -367,6 +486,8 @@ def index(
     page_size: int = PAGE_SIZE_DEFAULT,
     group_by_period: Optional[str] = None,
     timestamp_column: Optional[str] = None,
+    dedupe_field: Optional[str] = None,
+    dedupe_timestamp: Optional[str] = None,
     sheet: Optional[str] = None
 ):
     # Load original data for specified sheet
@@ -391,21 +512,39 @@ def index(
         if any(parse_timestamp(val) is not None for val in sample_values):
             timestamp_columns.append(col)
     
-    # Apply grouping if both parameters are provided and valid (grouping is optional)
-    grouped = False
+    # Apply deduplication first if both parameters are provided
+    deduplicated = False
+    duplicates_removed = 0
+    original_count = len(df)
     error_message = None
+    
+    if dedupe_field and dedupe_field.strip() and dedupe_timestamp and dedupe_timestamp.strip():
+        try:
+            df, duplicates_removed = deduplicate_by_field(df, dedupe_field, dedupe_timestamp)
+            deduplicated = True
+        except ValueError as e:
+            error_message = str(e)
+            # Keep original data when deduplication fails
+            df = original_df.copy()
+    
+    # Apply grouping if both parameters are provided and valid (grouping is optional)
+    # Note: grouping after deduplication if both are applied
+    grouped = False
     if group_by_period and group_by_period.strip() and timestamp_column and timestamp_column.strip():
         # Validate group_by_period value
         if group_by_period not in ["day", "week"]:
-            error_message = f"Invalid grouping period '{group_by_period}'. Must be 'day' or 'week'"
+            if not error_message:  # Don't overwrite deduplication errors
+                error_message = f"Invalid grouping period '{group_by_period}'. Must be 'day' or 'week'"
         else:
             try:
                 df = group_by_time_period(df, timestamp_column, group_by_period)
                 grouped = True
             except ValueError as e:
-                error_message = str(e)
-                # Keep original data when grouping fails
-                df = original_df.copy()
+                if not error_message:  # Don't overwrite deduplication errors
+                    error_message = str(e)
+                # Keep current data when grouping fails (might be deduplicated data)
+                if not deduplicated:
+                    df = original_df.copy()
     
     # Apply search filter (works on both grouped and ungrouped data)
     if q and q.strip():
@@ -442,7 +581,12 @@ def index(
         "timestamp_columns": timestamp_columns,
         "group_by_period": group_by_period or "",
         "timestamp_column": timestamp_column or "",
+        "dedupe_field": dedupe_field or "",
+        "dedupe_timestamp": dedupe_timestamp or "",
         "grouped": grouped,
+        "deduplicated": deduplicated,
+        "duplicates_removed": duplicates_removed,
+        "original_count": original_count,
         "error_message": error_message,
         "available_sheets": get_available_sheets(),
         "current_sheet": current_sheet
