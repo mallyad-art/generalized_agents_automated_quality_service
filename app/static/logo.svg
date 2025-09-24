@@ -1,0 +1,42 @@
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100" height="100" fill="#2c2c2c"/>
+  
+  <!-- Top row of connected circles -->
+  <circle cx="25" cy="30" r="6" fill="white"/>
+  <circle cx="40" cy="30" r="6" fill="white"/>
+  <circle cx="55" cy="30" r="6" fill="white"/>
+  <circle cx="70" cy="30" r="6" fill="white"/>
+  <circle cx="85" cy="30" r="6" fill="white"/>
+  
+  <!-- Connecting lines for top row -->
+  <rect x="31" y="27" width="3" height="6" fill="white"/>
+  <rect x="46" y="27" width="3" height="6" fill="white"/>
+  <rect x="61" y="27" width="3" height="6" fill="white"/>
+  <rect x="76" y="27" width="3" height="6" fill="white"/>
+  
+  <!-- Black holes in top circles -->
+  <circle cx="40" cy="30" r="3" fill="#2c2c2c"/>
+  <circle cx="55" cy="30" r="3" fill="#2c2c2c"/>
+  <circle cx="70" cy="30" r="3" fill="#2c2c2c"/>
+  <circle cx="85" cy="30" r="3" fill="#2c2c2c"/>
+  
+  <!-- Vertical stem -->
+  <circle cx="55" cy="45" r="6" fill="white"/>
+  <circle cx="55" cy="60" r="6" fill="white"/>
+  <circle cx="55" cy="75" r="6" fill="white"/>
+  
+  <!-- Vertical connecting lines -->
+  <rect x="52" y="36" width="6" height="3" fill="white"/>
+  <rect x="52" y="51" width="6" height="3" fill="white"/>
+  <rect x="52" y="66" width="6" height="3" fill="white"/>
+  
+  <!-- Black holes in stem -->
+  <circle cx="55" cy="45" r="3" fill="#2c2c2c"/>
+  <circle cx="55" cy="60" r="3" fill="#2c2c2c"/>
+  
+  <!-- Small dots -->
+  <circle cx="15" cy="40" r="2" fill="white"/>
+  <circle cx="90" cy="25" r="2" fill="white"/>
+  <circle cx="45" cy="85" r="2" fill="white"/>
+  <circle cx="65" cy="85" r="2" fill="white"/>
+</svg>
