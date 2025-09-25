@@ -1,4 +1,4 @@
-# Generalized Agents: Automated Quality Service Dashboard
+# Google Sheets Web Viewer
 
 A lightweight FastAPI application that transforms any Google Sheet into a searchable, paginated web interface. Perfect for sharing spreadsheet data without giving direct access to your Google Sheets.
 
@@ -6,6 +6,7 @@ A lightweight FastAPI application that transforms any Google Sheet into a search
 
 - **Web Interface**: Clean, responsive HTML table with search and pagination
 - **Multi-Sheet Support**: Configure and switch between multiple Google Sheets
+- **Deduplication**: Remove duplicate runs, keeping latest by timestamp per unique key
 - **Clickable Links**: Automatically detects and converts URLs to clickable links
 - **Time-based Grouping**: Group data by day/week based on timestamp columns
 - **REST API**: JSON endpoint for programmatic access to your sheet data
@@ -15,17 +16,208 @@ A lightweight FastAPI application that transforms any Google Sheet into a search
 - **Docker Ready**: Containerized deployment with environment configuration
 - **Service Account Auth**: Secure access using Google Cloud service accounts
 
+## Architecture
+
+### High-Level System Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
+│                 │    │                  │    │                     │
+│   Web Browser   │◄──►│   FastAPI App    │◄──►│   Google Sheets     │
+│                 │    │                  │    │                     │
+│  - HTML UI      │    │  - Web Routes    │    │  - Auto-QC Data     │
+│  - Search       │    │  - API Routes    │    │  - Auto-Reviewer    │
+│  - Pagination   │    │  - Data Processing│   │  - Service Account  │
+│  - Deduplication│    │  - Caching       │    │    Authentication   │
+│                 │    │                  │    │                     │
+└─────────────────┘    └──────────────────┘    └─────────────────────┘
+                                │
+                                ▼
+                       ┌──────────────────┐
+                       │                  │
+                       │   Static Files   │
+                       │                  │
+                       │  - Logo/Assets   │
+                       │  - CSS Styles    │
+                       │                  │
+                       └──────────────────┘
+```
+
+### Data Processing Pipeline
+
+```
+Google Sheets Data
+        │
+        ▼
+┌─────────────────┐
+│  Load & Cache   │ ◄── TTL Cache (60s default)
+│   Raw Data      │
+└─────────────────┘
+        │
+        ▼
+┌─────────────────┐     ┌──────────────────┐
+│  Deduplication  │────►│  Keep Latest by  │
+│   (Optional)    │     │   Timestamp      │
+└─────────────────┘     └──────────────────┘
+        │
+        ▼
+┌─────────────────┐     ┌──────────────────┐
+│  Time Grouping  │────►│  Group by Day/   │
+│   (Optional)    │     │     Week         │
+└─────────────────┘     └──────────────────┘
+        │
+        ▼
+┌─────────────────┐     ┌──────────────────┐
+│  Search Filter  │────►│  Text Matching   │
+│   (Optional)    │     │  & Highlighting  │
+└─────────────────┘     └──────────────────┘
+        │
+        ▼
+┌─────────────────┐     ┌──────────────────┐
+│   Pagination    │────►│  Page Slicing    │
+│                 │     │  & Navigation    │
+└─────────────────┘     └──────────────────┘
+        │
+        ▼
+┌─────────────────┐
+│  HTML/JSON      │
+│   Response      │
+└─────────────────┘
+```
+
+### Component Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        FastAPI Application                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+│  │   Web Routes    │  │   API Routes    │  │  Static Files   │ │
+│  │                 │  │                 │  │                 │ │
+│  │  GET /          │  │  GET /api/data  │  │  GET /static/*  │ │
+│  │  - HTML UI      │  │  - JSON Data    │  │  - Logo         │ │
+│  │  - Templates    │  │  - Pagination   │  │  - CSS          │ │
+│  │  - Forms        │  │  - Search       │  │                 │ │
+│  │                 │  │                 │  │                 │ │
+│  │                 │  │  GET /api/      │  │                 │ │
+│  │                 │  │  - sheets       │  │                 │ │
+│  │                 │  │  - columns      │  │                 │ │
+│  │                 │  │  - validate     │  │                 │ │
+│  │                 │  │  - deduplicate  │  │                 │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                      Data Processing Layer                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+│  │  Sheet Loader   │  │  Data Processor │  │  Cache Manager  │ │
+│  │                 │  │                 │  │                 │ │
+│  │  - Multi-sheet  │  │  - Deduplication│  │  - TTL Cache    │ │
+│  │    support      │  │  - Time grouping│  │  - Per-sheet    │ │
+│  │  - gspread      │  │  - Search filter│  │    caching      │ │
+│  │    integration  │  │  - Pagination   │  │  - Auto-refresh │ │
+│  │  - Error        │  │  - Link         │  │                 │ │
+│  │    handling     │  │    detection    │  │                 │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                    Google Sheets Integration                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+│  │ Service Account │  │  Sheets API     │  │  Data Formats   │ │
+│  │                 │  │                 │  │                 │ │
+│  │  - JSON Key     │  │  - Read-only    │  │  - Auto-QC      │ │
+│  │  - OAuth Scopes │  │    access       │  │  - Auto-Reviewer│ │
+│  │  - Secure Auth  │  │  - Multiple     │  │  - Timestamps   │ │
+│  │                 │  │    sheets       │  │  - URLs         │ │
+│  │                 │  │  - Rate limits  │  │  - Mixed data   │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow Scenarios
+
+#### Scenario 1: Individual Runs View (Default)
+```
+User Request → Load Sheet → Apply Search → Paginate → Display
+                    │
+                    ▼
+            "All Individual Execution Runs"
+            Each row = separate Auto-QC/Auto-Reviewer run
+```
+
+#### Scenario 2: Distinct Records View (Deduplicated)
+```
+User Request → Load Sheet → Deduplicate by Key → Keep Latest by Timestamp → Apply Search → Paginate → Display
+                                    │                        │
+                                    ▼                        ▼
+                            Group by unique field    Sort by timestamp (desc)
+                            (e.g., user_id)         Keep first occurrence
+                                    │                        │
+                                    ▼                        ▼
+                            "Distinct Records (Latest Run Per Key)"
+                            Each row = latest run per unique identifier
+```
+
+#### Scenario 3: Time-based Grouping
+```
+User Request → Load Sheet → Group by Time Period → Aggregate Counts → Display Summary
+                                    │                      │
+                                    ▼                      ▼
+                            Parse timestamps        Count records per
+                            Group by day/week       time period
+                                    │                      │
+                                    ▼                      ▼
+                            "Grouped Data Summary"
+                            Each row = time period with counts
+```
+
 ## Endpoints
 
-- `GET /` - Interactive web interface with search, pagination, and grouping controls
+- `GET /` - Interactive web interface with search, pagination, deduplication, and grouping controls
 - `GET /api/data` - JSON API with query parameters:
   - `q` - Search term (searches across all columns)
   - `page` - Page number (default: 1)
   - `page_size` - Items per page (default: 25)
   - `group_by_period` - Group by time period: "day" or "week"
   - `timestamp_column` - Column name containing timestamps for grouping
+  - `dedupe_field` - Field to deduplicate by (e.g., "user_id", "email")
+  - `dedupe_timestamp` - Timestamp field to determine latest record
+- `GET /api/deduplicate` - Dedicated deduplication endpoint with same parameters as `/api/data`
 - `GET /api/columns` - Get available columns and detected timestamp columns
+- `GET /api/validate-timestamp` - Validate if a column contains valid timestamp data
+- `GET /api/sheets` - Get list of available sheets
 - `GET /api/health` - Health check endpoint
+
+### Data Deduplication
+
+Transform your view from "all individual runs" to "distinct records" by removing duplicates:
+
+1. **Unique Key Selection**: Choose any field to deduplicate by (e.g., user_id, email, task_id)
+2. **Latest Record Logic**: Automatically keeps the most recent run based on timestamp
+3. **Duplicate Removal**: Shows exactly how many duplicate runs were filtered out
+4. **Flexible Timestamps**: Supports various timestamp formats for "latest" determination
+
+**Use Cases**:
+- **Auto-QC Results**: Show latest quality check per user/task instead of all runs
+- **Auto-Reviewer Data**: Display most recent review per item, hiding older attempts
+- **Status Tracking**: Get current state by removing historical duplicate entries
+
+**Example API calls**:
+```bash
+# Show distinct users, keeping their latest Auto-QC run
+GET /api/data?dedupe_field=user_id&dedupe_timestamp=created_at
+
+# Deduplicate by email, keeping latest by updated timestamp
+GET /api/deduplicate?dedupe_field=email&dedupe_timestamp=last_updated
+
+# Combine deduplication with search
+GET /api/data?dedupe_field=task_id&dedupe_timestamp=completed_at&q=passed
+```
 
 ### Time-based Grouping
 
@@ -44,6 +236,9 @@ GET /api/data?group_by_period=day&timestamp_column=created_at
 
 # Group by week using a timestamp column
 GET /api/data?group_by_period=week&timestamp_column=created_at
+
+# Combine deduplication with grouping
+GET /api/data?dedupe_field=user_id&dedupe_timestamp=created_at&group_by_period=day&timestamp_column=created_at
 ```
 
 ## Prerequisites
@@ -185,3 +380,6 @@ services:
 4. Add tests if applicable
 5. Submit a pull request
 
+## License
+
+This project is open source. Please check the LICENSE file for details.
