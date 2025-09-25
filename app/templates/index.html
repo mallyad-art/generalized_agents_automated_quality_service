@@ -172,7 +172,10 @@
 
     <!-- Deduplication Controls -->
     <div class="grouping-controls" style="background: #f0f8ff;">
-      <h3>🔄 De-duplicate Rows (Optional)</h3>
+      <h3>🔄 Show Distinct Records Only (Remove Duplicate Runs)</h3>
+      <p style="margin: 4px 0 8px 0; font-size: 12px; color: #666;">
+        Convert from "all individual runs" to "distinct records" by keeping only the latest run per unique key
+      </p>
       <form method="get" action="/">
         <input type="hidden" name="q" value="{{ q }}">
         <input type="hidden" name="page_size" value="{{ page_size }}">
@@ -183,24 +186,24 @@
 
         <div class="toolbar-row">
           <select name="dedupe_field">
-            <option value="">Select field to deduplicate by</option>
+            <option value="">Select unique key field (e.g., author, colab_name)</option>
             {% for col in all_columns %}
             <option value="{{ col }}" {% if dedupe_field==col %}selected{% endif %}>{{ col }}</option>
             {% endfor %}
           </select>
 
           <select name="dedupe_timestamp">
-            <option value="">Select timestamp field (keep latest)</option>
+            <option value="">Select timestamp field (to keep latest run)</option>
             {% for col in timestamp_columns %}
             <option value="{{ col }}" {% if dedupe_timestamp==col %}selected{% endif %}>{{ col }}</option>
             {% endfor %}
           </select>
 
-          <button type="submit" id="apply-dedupe-btn">Apply Deduplication</button>
+          <button type="submit" id="apply-dedupe-btn">Show Distinct Records</button>
 
           {% if deduplicated %}
           <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}" class="clear-grouping"
-            style="padding: 6px 10px; border-radius: 4px;">Clear Deduplication</a>
+            style="padding: 6px 10px; border-radius: 4px;">Show All Runs</a>
           {% endif %}
         </div>
         <div id="dedupe-validation-info" class="validation-info" style="display: none;"></div>
@@ -270,13 +273,20 @@
     
     {% if deduplicated %}
     <div class="status-info" style="background: #e8f5e8; color: #2e7d32; border-left: 4px solid #4caf50;">
-      🔄 Data deduplicated by "{{ dedupe_field }}" keeping latest by "{{ dedupe_timestamp }}" - {{ duplicates_removed }} duplicates removed ({{ original_count }} → {{ total }} rows)
+      🔄 <strong>Distinct Records View:</strong> Showing unique records deduplicated by "{{ dedupe_field }}", keeping the latest run based on "{{ dedupe_timestamp }}" timestamp. {{ duplicates_removed }} duplicate runs removed ({{ original_count }} → {{ total }} records)
     </div>
     {% endif %}
     
     {% if grouped %}
     <div class="status-info">
       📊 Data grouped by {{ group_by_period }} using column "{{ timestamp_column }}"
+    </div>
+    {% endif %}
+
+    <!-- Data Type Information -->
+    {% if not deduplicated and not grouped %}
+    <div class="status-info" style="background: #f3e5f5; color: #7b1fa2; border-left: 4px solid #9c27b0;">
+      📋 <strong>Individual Runs View:</strong> Each row represents a separate Auto-QC or Auto-Reviewer execution run
     </div>
     {% endif %}
 
@@ -287,9 +297,28 @@
     </div>
     {% endif %}
 
-    <div>{{ total }} rows{% if deduplicated %} (deduplicated){% endif %}{% if grouped %} (grouped){% endif %}{% if q and q.strip() %} matching "{{ q }}"{% endif %}</div>
+    <div style="font-weight: bold; margin-bottom: 8px;">
+      {{ total }} 
+      {% if deduplicated %}
+        distinct records (deduplicated by "{{ dedupe_field }}", latest by "{{ dedupe_timestamp }}")
+      {% elif grouped %}
+        grouped records
+      {% else %}
+        individual runs
+      {% endif %}
+      {% if q and q.strip() %} matching "{{ q }}"{% endif %}
+    </div>
 
     <table>
+      <caption style="caption-side: top; text-align: left; font-weight: bold; padding: 8px 0; color: #333;">
+        {% if deduplicated %}
+          📊 Distinct Records (Latest Run Per {{ dedupe_field|title }})
+        {% elif grouped %}
+          📈 Grouped Data Summary
+        {% else %}
+          🔄 All Individual Execution Runs
+        {% endif %}
+      </caption>
       <thead>
         <tr>
           {% for c in cols %}
