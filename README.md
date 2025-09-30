@@ -6,6 +6,7 @@ A lightweight FastAPI application that transforms any Google Sheet into a search
 
 - **Web Interface**: Clean, responsive HTML table with search and pagination
 - **Multi-Sheet Support**: Configure and switch between multiple Google Sheets
+- **Timestamp Sorting**: Sort data by timestamp columns with ascending/descending options
 - **Deduplication**: Remove duplicate runs, keeping latest by timestamp per unique key
 - **Clickable Links**: Automatically detects and converts URLs to clickable links
 - **Time-based Grouping**: Group data by day/week based on timestamp columns
@@ -68,6 +69,12 @@ Google Sheets Data
         │
         ▼
 ┌─────────────────┐     ┌──────────────────┐
+│ Timestamp Sort  │────►│ Sort by Timestamp│
+│   (Optional)    │     │  (Desc/Asc)      │
+└─────────────────┘     └──────────────────┘
+        │
+        ▼
+┌─────────────────┐     ┌──────────────────┐
 │  Search Filter  │────►│  Text Matching   │
 │   (Optional)    │     │  & Highlighting  │
 └─────────────────┘     └──────────────────┘
@@ -116,10 +123,12 @@ Google Sheets Data
 │  │                 │  │                 │  │                 │ │
 │  │  - Multi-sheet  │  │  - Deduplication│  │  - TTL Cache    │ │
 │  │    support      │  │  - Time grouping│  │  - Per-sheet    │ │
-│  │  - gspread      │  │  - Search filter│  │    caching      │ │
-│  │    integration  │  │  - Pagination   │  │  - Auto-refresh │ │
-│  │  - Error        │  │  - Link         │  │                 │ │
-│  │    handling     │  │    detection    │  │                 │ │
+│  │  - gspread      │  │  - Timestamp    │  │    caching      │ │
+│  │    integration  │  │    sorting      │  │  - Auto-refresh │ │
+│  │  - Error        │  │  - Search filter│  │                 │ │
+│  │    handling     │  │  - Pagination   │  │                 │ │
+│  │                 │  │  - Link         │  │                 │ │
+│  │                 │  │    detection    │  │                 │ │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
 │                                                                 │
 ├─────────────────────────────────────────────────────────────────┤
@@ -143,37 +152,50 @@ Google Sheets Data
 
 #### Scenario 1: Individual Runs View (Default)
 ```
-User Request → Load Sheet → Apply Search → Paginate → Display
-                    │
-                    ▼
-            "All Individual Execution Runs"
-            Each row = separate Auto-QC/Auto-Reviewer run
+User Request → Load Sheet → Apply Sorting → Apply Search → Paginate → Display
+                    │              │
+                    ▼              ▼
+            "All Individual Execution Runs"    Sort by timestamp
+            Each row = separate Auto-QC/Auto-Reviewer run    (desc/asc)
 ```
 
 #### Scenario 2: Distinct Records View (Deduplicated)
 ```
-User Request → Load Sheet → Deduplicate by Key → Keep Latest by Timestamp → Apply Search → Paginate → Display
-                                    │                        │
-                                    ▼                        ▼
-                            Group by unique field    Sort by timestamp (desc)
-                            (e.g., user_id)         Keep first occurrence
-                                    │                        │
-                                    ▼                        ▼
+User Request → Load Sheet → Deduplicate by Key → Keep Latest by Timestamp → Apply Sorting → Apply Search → Paginate → Display
+                                    │                        │                     │
+                                    ▼                        ▼                     ▼
+                            Group by unique field    Sort by timestamp (desc)    Sort final results
+                            (e.g., user_id)         Keep first occurrence       by timestamp (desc/asc)
+                                    │                        │                     │
+                                    ▼                        ▼                     ▼
                             "Distinct Records (Latest Run Per Key)"
                             Each row = latest run per unique identifier
 ```
 
 #### Scenario 3: Time-based Grouping
 ```
-User Request → Load Sheet → Group by Time Period → Aggregate Counts → Display Summary
-                                    │                      │
-                                    ▼                      ▼
-                            Parse timestamps        Count records per
-                            Group by day/week       time period
-                                    │                      │
-                                    ▼                      ▼
+User Request → Load Sheet → Group by Time Period → Aggregate Counts → Apply Sorting → Display Summary
+                                    │                      │                │
+                                    ▼                      ▼                ▼
+                            Parse timestamps        Count records per    Sort time periods
+                            Group by day/week       time period         chronologically (desc/asc)
+                                    │                      │                │
+                                    ▼                      ▼                ▼
                             "Grouped Data Summary"
                             Each row = time period with counts
+```
+
+#### Scenario 4: Sorting Only
+```
+User Request → Load Sheet → Validate Timestamp Column → Apply Sorting → Apply Search → Paginate → Display
+                                    │                         │
+                                    ▼                         ▼
+                            Check column contains        Sort by parsed timestamps
+                            valid timestamp data         (newest/oldest first)
+                                    │                         │
+                                    ▼                         ▼
+                            "Sorted View: Data sorted by [column] timestamp"
+                            Rows ordered chronologically by selected timestamp
 ```
 
 ## Endpoints
@@ -183,11 +205,13 @@ User Request → Load Sheet → Group by Time Period → Aggregate Counts → Di
   - `q` - Search term (searches across all columns)
   - `page` - Page number (default: 1)
   - `page_size` - Items per page (default: 25)
+  - `sort_column` - Timestamp column name for sorting
+  - `sort_order` - Sort direction: "desc" (newest first, default) or "asc" (oldest first)
   - `group_by_period` - Group by time period: "day" or "week"
   - `timestamp_column` - Column name containing timestamps for grouping
   - `dedupe_field` - Field to deduplicate by (e.g., "user_id", "email")
   - `dedupe_timestamp` - Timestamp field to determine latest record
-- `GET /api/deduplicate` - Dedicated deduplication endpoint with same parameters as `/api/data`
+- `GET /api/deduplicate` - Dedicated deduplication endpoint with same parameters as `/api/data` plus `sort_order`
 - `GET /api/columns` - Get available columns and detected timestamp columns
 - `GET /api/validate-timestamp` - Validate if a column contains valid timestamp data
 - `GET /api/sheets` - Get list of available sheets
@@ -240,6 +264,48 @@ GET /api/data?group_by_period=week&timestamp_column=created_at
 # Combine deduplication with grouping
 GET /api/data?dedupe_field=user_id&dedupe_timestamp=created_at&group_by_period=day&timestamp_column=created_at
 ```
+
+### Timestamp Sorting
+
+Sort your data by timestamp columns with flexible ordering options:
+
+1. **Automatic Detection**: The system identifies timestamp columns in your sheet
+2. **Default Descending**: Always defaults to newest-first (descending) order
+3. **User Choice**: Users can switch to oldest-first (ascending) order
+4. **Universal Support**: Works across all views:
+   - **Individual Runs**: Direct sorting of all records
+   - **Deduplication**: Sorts deduplicated results by timestamp
+   - **Grouping**: Sorts grouped time periods chronologically
+
+**Key Features**:
+- **Timestamp-Only**: Only allows sorting by validated timestamp columns
+- **Format Flexible**: Supports various timestamp formats (ISO 8601, common date formats)
+- **Real-time Validation**: Client-side validation ensures selected columns contain valid timestamps
+- **Parameter Persistence**: Sorting preferences preserved across navigation and operations
+
+**Example API calls**:
+```bash
+# Sort by timestamp, newest first (default)
+GET /api/data?sort_column=created_at&sort_order=desc
+
+# Sort by timestamp, oldest first
+GET /api/data?sort_column=updated_at&sort_order=asc
+
+# Combine sorting with deduplication (sorts deduplicated results)
+GET /api/data?dedupe_field=user_id&dedupe_timestamp=created_at&sort_column=created_at&sort_order=desc
+
+# Combine sorting with grouping (sorts grouped time periods)
+GET /api/data?group_by_period=day&timestamp_column=created_at&sort_column=created_at&sort_order=asc
+
+# Sort with search and pagination
+GET /api/data?sort_column=completed_at&sort_order=desc&q=success&page=2&page_size=50
+```
+
+**UI Controls**:
+- **Sort Column Dropdown**: Select from detected timestamp columns
+- **Sort Order Dropdown**: Choose "Newest First (Descending)" or "Oldest First (Ascending)"
+- **Apply/Clear Buttons**: Apply sorting or clear to return to default order
+- **Status Display**: Shows current sorting status in the interface
 
 ## Prerequisites
 
