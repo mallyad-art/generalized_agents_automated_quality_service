@@ -150,21 +150,36 @@
   <div class="container">
     <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
       <img src="/static/logo.svg" alt="Logo" style="width: 60px; height: 60px;">
-      <h1 style="margin: 0;">Generalized Agents: Automated Quality Dashboard</h1>
+      <div>
+        <h1 style="margin: 0;">Generalized Agents: Automated Quality Dashboard</h1>
+        <p style="margin: 8px 0 0 0; color: #666; font-size: 16px;">
+          Real-time insights into Auto-QC and Auto-Reviewer execution results
+        </p>
+      </div>
     </div>
     
+    <!-- Dashboard Overview -->
+    <div style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #1976d2;">
+      <p style="margin: 0; color: #1976d2; font-size: 14px;">
+        📊 <strong>Interactive Data Dashboard:</strong> Search, filter, sort, and analyze your automated quality data with real-time insights. 
+        View individual records or group by time periods to track trends and patterns.
+      </p>
+    </div>
+
     <!-- Sheet Selection -->
     {% if available_sheets|length > 1 %}
     <div class="sheet-selector" style="background: #e8f5e8; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
       <h3 style="margin: 0 0 8px 0; font-size: 14px;">📊 Current Sheet: {{ current_sheet }}</h3>
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
         {% for sheet in available_sheets %}
-          {% if sheet.name == current_sheet %}
-            <span style="padding: 4px 8px; background: #4caf50; color: white; border-radius: 3px; font-size: 12px;">{{ sheet.display_name }}</span>
-          {% else %}
-            <a href="/?sheet={{ sheet.name }}&q={{ q }}&page_size={{ page_size }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}" 
-               style="padding: 4px 8px; background: #f5f5f5; color: #1976d2; border-radius: 3px; font-size: 12px; text-decoration: none;">{{ sheet.display_name }}</a>
-          {% endif %}
+        {% if sheet.name == current_sheet %}
+        <span style="padding: 4px 8px; background: #4caf50; color: white; border-radius: 3px; font-size: 12px;">{{
+          sheet.display_name }}</span>
+        {% else %}
+        <a href="/?sheet={{ sheet.name }}&q={{ q }}&page_size={{ page_size }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}"
+          style="padding: 4px 8px; background: #f5f5f5; color: #1976d2; border-radius: 3px; font-size: 12px; text-decoration: none;">{{
+          sheet.display_name }}</a>
+        {% endif %}
         {% endfor %}
       </div>
     </div>
@@ -176,6 +191,9 @@
       <p style="margin: 4px 0 8px 0; font-size: 12px; color: #666;">
         Convert from "all individual runs" to "distinct records" by keeping only the latest run per unique key
       </p>
+      <div style="background: rgba(25, 118, 210, 0.1); padding: 8px; border-radius: 4px; margin-bottom: 8px; font-size: 12px;">
+        <strong>🎯 Use Case:</strong> Show latest status per unique key, removing duplicate runs and retries.
+      </div>
       <form method="get" action="/">
         <input type="hidden" name="q" value="{{ q }}">
         <input type="hidden" name="page_size" value="{{ page_size }}">
@@ -204,8 +222,8 @@
           <button type="submit" id="apply-dedupe-btn">Show Distinct Records</button>
 
           {% if deduplicated %}
-          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}" class="clear-grouping"
-            style="padding: 6px 10px; border-radius: 4px;">Show All Runs</a>
+          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}"
+            class="clear-grouping" style="padding: 6px 10px; border-radius: 4px;">Show All Runs</a>
           {% endif %}
         </div>
         <div id="dedupe-validation-info" class="validation-info" style="display: none;"></div>
@@ -218,6 +236,9 @@
       <p style="margin: 4px 0 8px 0; font-size: 12px; color: #666;">
         Sort data by timestamp column - works for individual runs, deduplication, and grouping views
       </p>
+      <div style="background: rgba(245, 124, 0, 0.1); padding: 8px; border-radius: 4px; margin-bottom: 8px; font-size: 12px;">
+        <strong>⏰ Use Case:</strong> Sort data chronologically - newest first (default) or oldest first.
+      </div>
       <form method="get" action="/">
         <input type="hidden" name="q" value="{{ q }}">
         <input type="hidden" name="page_size" value="{{ page_size }}">
@@ -244,8 +265,8 @@
           <button type="submit" id="apply-sorting-btn">Apply Sorting</button>
 
           {% if sort_column %}
-          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}" class="clear-grouping"
-            style="padding: 6px 10px; border-radius: 4px;">Clear Sorting</a>
+          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}"
+            class="clear-grouping" style="padding: 6px 10px; border-radius: 4px;">Clear Sorting</a>
           {% endif %}
         </div>
         <div id="sort-validation-info" class="validation-info" style="display: none;"></div>
@@ -255,6 +276,9 @@
     <!-- Grouping Controls -->
     <div class="grouping-controls">
       <h3>📊 Time-based Grouping (Optional)</h3>
+      <div style="background: rgba(76, 175, 80, 0.1); padding: 8px; border-radius: 4px; margin-bottom: 8px; font-size: 12px;">
+        <strong>📈 Use Case:</strong> Group data by time periods to analyze trends and patterns.
+      </div>
       <form method="get" action="/">
         <input type="hidden" name="q" value="{{ q }}">
         <input type="hidden" name="page_size" value="{{ page_size }}">
@@ -282,8 +306,8 @@
           <button type="submit" id="apply-grouping-btn">Apply Grouping</button>
 
           {% if grouped %}
-          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}" class="clear-grouping"
-            style="padding: 6px 10px; border-radius: 4px;">Clear Grouping</a>
+          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}"
+            class="clear-grouping" style="padding: 6px 10px; border-radius: 4px;">Clear Grouping</a>
           {% endif %}
         </div>
         <div id="validation-info" class="validation-info" style="display: none;"></div>
@@ -316,24 +340,29 @@
       ❌ Processing Error: {{ error_message }}
     </div>
     {% endif %}
-    
+
     {% if deduplicated %}
     <div class="status-info" style="background: #e8f5e8; color: #2e7d32; border-left: 4px solid #4caf50;">
-      🔄 <strong>Distinct Records View:</strong> Showing unique records deduplicated by "{{ dedupe_field }}", keeping the latest run based on "{{ dedupe_timestamp }}" timestamp. {{ duplicates_removed }} duplicate runs removed ({{ original_count }} → {{ total }} records)
+      🔄 <strong>Distinct Records View:</strong> Showing unique records deduplicated by "{{ dedupe_field }}", keeping
+      the latest run based on "{{ dedupe_timestamp }}" timestamp. {{ duplicates_removed }} duplicate runs removed ({{
+      original_count }} → {{ total }} records)
+
     </div>
     {% endif %}
-    
+
     {% if grouped %}
     <div class="status-info">
       📊 Data grouped by {{ group_by_period }} using column "{{ timestamp_column }}"
       {% if sort_order == 'asc' %} (sorted oldest first){% else %} (sorted newest first){% endif %}
+
     </div>
     {% endif %}
-    
+
     {% if sort_column and not grouped and not deduplicated %}
     <div class="status-info" style="background: #fff8e1; color: #f57c00; border-left: 4px solid #ff9800;">
-      🔄 <strong>Sorted View:</strong> Data sorted by "{{ sort_column }}" timestamp 
+      🔄 <strong>Sorted View:</strong> Data sorted by "{{ sort_column }}" timestamp
       {% if sort_order == 'asc' %}(oldest first){% else %}(newest first){% endif %}
+
     </div>
     {% endif %}
 
@@ -341,8 +370,11 @@
     {% if not deduplicated and not grouped %}
     <div class="status-info" style="background: #f3e5f5; color: #7b1fa2; border-left: 4px solid #9c27b0;">
       📋 <strong>Individual Runs View:</strong> Each row represents a separate Auto-QC or Auto-Reviewer execution run
+
     </div>
     {% endif %}
+
+
 
     <!-- Search Information -->
     {% if q and q.strip() %}
@@ -351,26 +383,31 @@
     </div>
     {% endif %}
 
-    <div style="font-weight: bold; margin-bottom: 8px;">
-      {{ total }} 
-      {% if deduplicated %}
+    <!-- Data Summary -->
+    <div style="background: #f8f9fa; padding: 16px; border-radius: 6px; margin-bottom: 16px; border-left: 4px solid #6c757d;">
+      <div style="font-weight: bold; margin-bottom: 8px; font-size: 16px;">
+        📊 Showing {{ total }}
+        {% if deduplicated %}
         distinct records (deduplicated by "{{ dedupe_field }}", latest by "{{ dedupe_timestamp }}")
-      {% elif grouped %}
+        {% elif grouped %}
         grouped records
-      {% else %}
+        {% else %}
         individual runs
-      {% endif %}
-      {% if q and q.strip() %} matching "{{ q }}"{% endif %}
+        {% endif %}
+        {% if q and q.strip() %} matching "{{ q }}"{% endif %}
+      </div>
+      
+
     </div>
 
     <table>
       <caption style="caption-side: top; text-align: left; font-weight: bold; padding: 8px 0; color: #333;">
         {% if deduplicated %}
-          📊 Distinct Records (Latest Run Per {{ dedupe_field|title }})
+        📊 Distinct Records (Latest Run Per {{ dedupe_field|title }})
         {% elif grouped %}
-          📈 Grouped Data Summary
+        📈 Grouped Data Summary
         {% else %}
-          🔄 All Individual Execution Runs
+        🔄 All Individual Execution Runs
         {% endif %}
       </caption>
       <thead>
@@ -409,6 +446,8 @@
         <button name="page" value="{{ pages }}" {% if page>= pages %}disabled{% endif %}>Last &raquo;</button>
       </form>
     </div>
+    
+
   </div>
 
   <script>
@@ -418,12 +457,12 @@
       const timestampSelect = document.querySelector('select[name="timestamp_column"]');
       const periodSelect = document.querySelector('select[name="group_by_period"]');
       const validationInfo = document.getElementById('validation-info');
-      
+
       // Deduplication validation
       const dedupeFieldSelect = document.querySelector('select[name="dedupe_field"]');
       const dedupeTimestampSelect = document.querySelector('select[name="dedupe_timestamp"]');
       const dedupeValidationInfo = document.getElementById('dedupe-validation-info');
-      
+
       // Sorting validation
       const sortColumnSelect = document.querySelector('select[name="sort_column"]');
       const sortValidationInfo = document.getElementById('sort-validation-info');

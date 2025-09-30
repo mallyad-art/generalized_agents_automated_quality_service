@@ -9,6 +9,7 @@ A lightweight FastAPI application that transforms any Google Sheet into a search
 - **Timestamp Sorting**: Sort data by timestamp columns with ascending/descending options
 - **Deduplication**: Remove duplicate runs, keeping latest by timestamp per unique key
 - **Clickable Links**: Automatically detects and converts URLs to clickable links
+
 - **Time-based Grouping**: Group data by day/week based on timestamp columns
 - **REST API**: JSON endpoint for programmatic access to your sheet data
 - **Real-time Search**: Filter rows across all columns with instant results
@@ -214,6 +215,7 @@ User Request → Load Sheet → Validate Timestamp Column → Apply Sorting → 
 - `GET /api/deduplicate` - Dedicated deduplication endpoint with same parameters as `/api/data` plus `sort_order`
 - `GET /api/columns` - Get available columns and detected timestamp columns
 - `GET /api/validate-timestamp` - Validate if a column contains valid timestamp data
+
 - `GET /api/sheets` - Get list of available sheets
 - `GET /api/health` - Health check endpoint
 
@@ -307,6 +309,8 @@ GET /api/data?sort_column=completed_at&sort_order=desc&q=success&page=2&page_siz
 - **Apply/Clear Buttons**: Apply sorting or clear to return to default order
 - **Status Display**: Shows current sorting status in the interface
 
+
+
 ## Prerequisites
 
 - Python 3.10+
@@ -355,12 +359,15 @@ Configure via `.env` file or environment variables:
 | `SHEET_TAB` | Sheet tab/worksheet name (legacy) | `Sheet1` |
 | `CACHE_TTL_SEC` | Cache duration in seconds | `60` |
 | `PAGE_SIZE_DEFAULT` | Default pagination size | `25` |
+
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account JSON | Required |
 
 Example `.env`:
 ```env
 # Multi-sheet configuration (preferred)
 SHEETS_CONFIG=[{"name": "Auto-QC", "sheet_id": "1KU9XnFkjdbROcpvmPztaXv9jC-62sLjA-2Mgb1N4_1o", "tab": "Sheet1"}, {"name": "Auto-Reviewer", "sheet_id": "1ABC123def456", "tab": "Reviews"}]
+
+
 
 # Other settings
 CACHE_TTL_SEC=60
@@ -391,6 +398,7 @@ GOOGLE_APPLICATION_CREDENTIALS=./service-account.json
 docker build -t google-sheets-viewer .
 docker run -p 8000:8000 \
   -e SHEETS_CONFIG='[{"name": "Auto-QC", "sheet_id": "your_sheet_id", "tab": "Sheet1"}]' \
+
   -e CACHE_TTL_SEC=60 \
   -e PAGE_SIZE_DEFAULT=25 \
   -e GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json \
@@ -408,6 +416,7 @@ services:
       - "8000:8000"
     environment:
       - SHEETS_CONFIG=[{"name": "Auto-QC", "sheet_id": "your_sheet_id", "tab": "Sheet1"}]
+
       - CACHE_TTL_SEC=60
       - PAGE_SIZE_DEFAULT=25
       - GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json

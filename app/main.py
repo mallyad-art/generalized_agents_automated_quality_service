@@ -21,6 +21,8 @@ SHEETS_CONFIG = []
 SHEET_ID = os.environ.get("SHEET_ID", "")
 SHEET_TAB = os.environ.get("SHEET_TAB", "Sheet1")
 
+
+
 # Parse multi-sheet configuration
 if SHEETS_CONFIG_STR:
     try:
@@ -29,6 +31,8 @@ if SHEETS_CONFIG_STR:
     except json.JSONDecodeError as e:
         print(f"Error parsing SHEETS_CONFIG: {e}")
         SHEETS_CONFIG = []
+
+
 
 # Fallback to single sheet if no multi-sheet config
 if not SHEETS_CONFIG and SHEET_ID:
@@ -82,6 +86,8 @@ def make_links_clickable(text):
     url_pattern = r'(https?://[^\s<>"{}|\\^`\[\]]+)'
     return re.sub(url_pattern, r'<a href="\1" target="_blank">\1</a>', text_str)
 
+
+
 def highlight_search_term(text, search_term):
     """Highlight search term in text with HTML markup"""
     if pd.isna(text) or text == "" or not search_term or not search_term.strip():
@@ -100,23 +106,23 @@ def highlight_search_term(text, search_term):
     
     return highlighted
 
-def process_cell_content(text, search_term=None):
+def process_cell_content(text, search_term=None, column_name=None):
     """Process cell content: make links clickable and highlight search terms"""
     if pd.isna(text) or text == "":
         return ""
     
-    # First make links clickable
+    # Make URLs clickable
     processed = make_links_clickable(text)
     
-    # Then highlight search terms (but avoid highlighting within HTML tags)
+    # Highlight search terms (but avoid highlighting within HTML tags)
     if search_term and search_term.strip():
         # Only highlight if the text doesn't contain HTML tags (to avoid breaking link HTML)
-        if '<a href=' not in processed:
+        if '<a href=' not in str(processed):
             processed = highlight_search_term(processed, search_term)
         else:
             # For text with links, highlight only the text parts, not the URLs
             # This is a simple approach - we could make it more sophisticated
-            text_parts = processed.split('<a href=')
+            text_parts = str(processed).split('<a href=')
             if len(text_parts) > 1:
                 # Highlight only the first part (before any links)
                 text_parts[0] = highlight_search_term(text_parts[0], search_term)
@@ -406,11 +412,10 @@ def api_data(
     # Process rows for API response (with highlighting if requested)
     rows = page_df.to_dict(orient="records")
     search_term = q.strip() if q and q.strip() else None
-    if search_term:
-        for row in rows:
-            for col in row:
-                if row[col] is not None:
-                    row[col] = process_cell_content(row[col], search_term)
+    for row in rows:
+        for col in row:
+            if row[col] is not None:
+                row[col] = process_cell_content(row[col], search_term, col)
     
     response_data = {
         "total": int(total),
@@ -468,6 +473,8 @@ def validate_timestamp_endpoint(column: str, sheet: Optional[str] = None):
         "column": column
     })
 
+
+
 @app.get("/api/deduplicate")
 def api_deduplicate(
     dedupe_field: str,
@@ -506,11 +513,10 @@ def api_deduplicate(
         # Process rows for API response (with highlighting if requested)
         rows = page_df.to_dict(orient="records")
         search_term = q.strip() if q and q.strip() else None
-        if search_term:
-            for row in rows:
-                for col in row:
-                    if row[col] is not None:
-                        row[col] = process_cell_content(row[col], search_term)
+        for row in rows:
+            for col in row:
+                if row[col] is not None:
+                    row[col] = process_cell_content(row[col], search_term, col)
         
         return JSONResponse({
             "total": int(total),
@@ -631,7 +637,7 @@ def index(
     for row in rows:
         for col in cols:
             if row[col] is not None:
-                row[col] = process_cell_content(row[col], search_term)
+                row[col] = process_cell_content(row[col], search_term, col)
     
     return templates.TemplateResponse("index.html", {
         "request": request,
