@@ -180,7 +180,7 @@ def validate_timestamp_column(df, timestamp_col):
     
     return True, f"Column '{timestamp_col}' validated successfully ({valid_percentage:.1%} valid timestamps)"
 
-def group_by_time_period(df, timestamp_col, period):
+def group_by_time_period(df, timestamp_col, period, sort_order='desc'):
     """Group dataframe by time period with validation"""
     if timestamp_col not in df.columns:
         raise ValueError(f"Column '{timestamp_col}' not found in the data")
@@ -209,22 +209,29 @@ def group_by_time_period(df, timestamp_col, period):
     # Create grouping key based on period
     if period == 'day':
         df['_group_key'] = df['_parsed_timestamp'].dt.date
+        df['_sort_key'] = df['_parsed_timestamp'].dt.date
     elif period == 'week':
         df['_group_key'] = df['_parsed_timestamp'].dt.to_period('W').apply(lambda x: f"Week of {x.start_time.date()}")
+        df['_sort_key'] = df['_parsed_timestamp'].dt.to_period('W').apply(lambda x: x.start_time.date())
     else:
         raise ValueError(f"Invalid period '{period}'. Must be 'day' or 'week'")
     
     # Group by time period only
-    grouped = df.groupby('_group_key').agg({
+    grouped = df.groupby(['_group_key', '_sort_key']).agg({
         col: 'count' for col in df.columns if not col.startswith('_')
     }).reset_index()
     
-    # Rename the group key column
+    # Sort by the sort key
+    ascending = sort_order == 'asc'
+    grouped = grouped.sort_values('_sort_key', ascending=ascending)
+    
+    # Remove sort key and rename the group key column
+    grouped = grouped.drop(columns=['_sort_key'])
     grouped = grouped.rename(columns={'_group_key': f'{period.title()}_Group'})
     
     return grouped
 
-def deduplicate_by_field(df, dedupe_field, timestamp_field):
+def deduplicate_by_field(df, dedupe_field, timestamp_field, sort_order='desc'):
     """Deduplicate dataframe by keeping the latest row for each unique value in dedupe_field"""
     if dedupe_field not in df.columns:
         raise ValueError(f"Deduplication field '{dedupe_field}' not found in the data")
@@ -257,13 +264,38 @@ def deduplicate_by_field(df, dedupe_field, timestamp_field):
     df_sorted = df_with_timestamps.sort_values('_parsed_timestamp', ascending=False)
     df_deduped = df_sorted.drop_duplicates(subset=[dedupe_field], keep='first')
     
-    # Remove the temporary timestamp column and sort by original order or timestamp
+    # Remove the temporary timestamp column and sort by final sort order
     df_deduped = df_deduped.drop(columns=['_parsed_timestamp'])
-    df_deduped = df_deduped.sort_values(timestamp_field, ascending=False)
+    ascending = sort_order == 'asc'
+    df_deduped = df_deduped.sort_values(timestamp_field, ascending=ascending)
     
     duplicates_removed = original_count - len(df_deduped)
     
     return df_deduped, duplicates_removed
+
+def apply_timestamp_sorting(df, sort_column, sort_order='desc'):
+    """Apply sorting by timestamp column"""
+    if not sort_column or sort_column not in df.columns:
+        return df
+    
+    # Validate timestamp column
+    is_valid, message = validate_timestamp_column(df, sort_column)
+    if not is_valid:
+        raise ValueError(message)
+    
+    # Parse timestamps for sorting
+    df = df.copy()
+    df['_parsed_timestamp'] = df[sort_column].apply(parse_timestamp)
+    
+    # Filter out rows where timestamp couldn't be parsed and sort
+    df_with_timestamps = df[df['_parsed_timestamp'].notna()]
+    ascending = sort_order == 'asc'
+    df_sorted = df_with_timestamps.sort_values('_parsed_timestamp', ascending=ascending)
+    
+    # Remove the temporary timestamp column
+    df_sorted = df_sorted.drop(columns=['_parsed_timestamp'])
+    
+    return df_sorted
 
 def load_sheet_df(sheet_name: str = None):
     """Load dataframe for a specific sheet"""
@@ -304,6 +336,8 @@ def api_data(
     timestamp_column: Optional[str] = None,
     dedupe_field: Optional[str] = None,
     dedupe_timestamp: Optional[str] = None,
+    sort_column: Optional[str] = None,
+    sort_order: Optional[str] = 'desc',
     sheet: Optional[str] = None
 ):
     # Load original data for specified sheet
@@ -318,10 +352,14 @@ def api_data(
     duplicates_removed = 0
     original_count = len(df)
     
+    # Validate sort_order parameter
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'desc'  # Default to descending
+    
     # Apply deduplication first if both parameters are provided
     if dedupe_field and dedupe_field.strip() and dedupe_timestamp and dedupe_timestamp.strip():
         try:
-            df, duplicates_removed = deduplicate_by_field(df, dedupe_field, dedupe_timestamp)
+            df, duplicates_removed = deduplicate_by_field(df, dedupe_field, dedupe_timestamp, sort_order)
             deduplicated = True
         except ValueError as e:
             error_message = str(e)
@@ -337,7 +375,7 @@ def api_data(
                 error_message = f"Invalid grouping period '{group_by_period}'. Must be 'day' or 'week'"
         else:
             try:
-                df = group_by_time_period(df, timestamp_column, group_by_period)
+                df = group_by_time_period(df, timestamp_column, group_by_period, sort_order)
                 grouped = True
             except ValueError as e:
                 if not error_message:  # Don't overwrite deduplication errors
@@ -345,6 +383,14 @@ def api_data(
                 # Keep current data when grouping fails (might be deduplicated data)
                 if not deduplicated:
                     df = load_sheet_df(sheet)  # Reset to original data only if not deduplicated
+    
+    # Apply sorting if not grouped or deduplicated (they handle their own sorting)
+    if not grouped and not deduplicated and sort_column and sort_column.strip():
+        try:
+            df = apply_timestamp_sorting(df, sort_column, sort_order)
+        except ValueError as e:
+            if not error_message:  # Don't overwrite other errors
+                error_message = str(e)
     
     # Apply search filter (works on both grouped and ungrouped data)
     if q and q.strip():
@@ -429,6 +475,7 @@ def api_deduplicate(
     q: Optional[str] = None,
     page: int = 1,
     page_size: int = PAGE_SIZE_DEFAULT,
+    sort_order: Optional[str] = 'desc',
     sheet: Optional[str] = None
 ):
     """Deduplicate data by field, keeping latest row by timestamp"""
@@ -438,8 +485,12 @@ def api_deduplicate(
         return JSONResponse({"error": str(e)}, status_code=400)
     
     try:
+        # Validate sort_order parameter
+        if sort_order not in ['asc', 'desc']:
+            sort_order = 'desc'  # Default to descending
+        
         # Apply deduplication
-        df_deduped, duplicates_removed = deduplicate_by_field(df, dedupe_field, timestamp_field)
+        df_deduped, duplicates_removed = deduplicate_by_field(df, dedupe_field, timestamp_field, sort_order)
         
         # Apply search filter after deduplication
         if q and q.strip():
@@ -488,6 +539,8 @@ def index(
     timestamp_column: Optional[str] = None,
     dedupe_field: Optional[str] = None,
     dedupe_timestamp: Optional[str] = None,
+    sort_column: Optional[str] = None,
+    sort_order: Optional[str] = 'desc',
     sheet: Optional[str] = None
 ):
     # Load original data for specified sheet
@@ -512,6 +565,10 @@ def index(
         if any(parse_timestamp(val) is not None for val in sample_values):
             timestamp_columns.append(col)
     
+    # Validate sort_order parameter
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'desc'  # Default to descending
+    
     # Apply deduplication first if both parameters are provided
     deduplicated = False
     duplicates_removed = 0
@@ -520,7 +577,7 @@ def index(
     
     if dedupe_field and dedupe_field.strip() and dedupe_timestamp and dedupe_timestamp.strip():
         try:
-            df, duplicates_removed = deduplicate_by_field(df, dedupe_field, dedupe_timestamp)
+            df, duplicates_removed = deduplicate_by_field(df, dedupe_field, dedupe_timestamp, sort_order)
             deduplicated = True
         except ValueError as e:
             error_message = str(e)
@@ -537,7 +594,7 @@ def index(
                 error_message = f"Invalid grouping period '{group_by_period}'. Must be 'day' or 'week'"
         else:
             try:
-                df = group_by_time_period(df, timestamp_column, group_by_period)
+                df = group_by_time_period(df, timestamp_column, group_by_period, sort_order)
                 grouped = True
             except ValueError as e:
                 if not error_message:  # Don't overwrite deduplication errors
@@ -545,6 +602,14 @@ def index(
                 # Keep current data when grouping fails (might be deduplicated data)
                 if not deduplicated:
                     df = original_df.copy()
+    
+    # Apply sorting if not grouped or deduplicated (they handle their own sorting)
+    if not grouped and not deduplicated and sort_column and sort_column.strip():
+        try:
+            df = apply_timestamp_sorting(df, sort_column, sort_order)
+        except ValueError as e:
+            if not error_message:  # Don't overwrite other errors
+                error_message = str(e)
     
     # Apply search filter (works on both grouped and ungrouped data)
     if q and q.strip():
@@ -583,6 +648,8 @@ def index(
         "timestamp_column": timestamp_column or "",
         "dedupe_field": dedupe_field or "",
         "dedupe_timestamp": dedupe_timestamp or "",
+        "sort_column": sort_column or "",
+        "sort_order": sort_order or "desc",
         "grouped": grouped,
         "deduplicated": deduplicated,
         "duplicates_removed": duplicates_removed,

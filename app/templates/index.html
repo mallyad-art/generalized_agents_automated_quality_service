@@ -162,7 +162,7 @@
           {% if sheet.name == current_sheet %}
             <span style="padding: 4px 8px; background: #4caf50; color: white; border-radius: 3px; font-size: 12px;">{{ sheet.display_name }}</span>
           {% else %}
-            <a href="/?sheet={{ sheet.name }}&q={{ q }}&page_size={{ page_size }}" 
+            <a href="/?sheet={{ sheet.name }}&q={{ q }}&page_size={{ page_size }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}" 
                style="padding: 4px 8px; background: #f5f5f5; color: #1976d2; border-radius: 3px; font-size: 12px; text-decoration: none;">{{ sheet.display_name }}</a>
           {% endif %}
         {% endfor %}
@@ -183,6 +183,8 @@
         <input type="hidden" name="sheet" value="{{ current_sheet }}">
         <input type="hidden" name="group_by_period" value="{{ group_by_period }}">
         <input type="hidden" name="timestamp_column" value="{{ timestamp_column }}">
+        <input type="hidden" name="sort_column" value="{{ sort_column }}">
+        <input type="hidden" name="sort_order" value="{{ sort_order }}">
 
         <div class="toolbar-row">
           <select name="dedupe_field">
@@ -202,11 +204,51 @@
           <button type="submit" id="apply-dedupe-btn">Show Distinct Records</button>
 
           {% if deduplicated %}
-          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}" class="clear-grouping"
+          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}" class="clear-grouping"
             style="padding: 6px 10px; border-radius: 4px;">Show All Runs</a>
           {% endif %}
         </div>
         <div id="dedupe-validation-info" class="validation-info" style="display: none;"></div>
+      </form>
+    </div>
+
+    <!-- Sorting Controls -->
+    <div class="grouping-controls" style="background: #fff8e1;">
+      <h3>🔄 Sort by Timestamp (Optional)</h3>
+      <p style="margin: 4px 0 8px 0; font-size: 12px; color: #666;">
+        Sort data by timestamp column - works for individual runs, deduplication, and grouping views
+      </p>
+      <form method="get" action="/">
+        <input type="hidden" name="q" value="{{ q }}">
+        <input type="hidden" name="page_size" value="{{ page_size }}">
+        <input type="hidden" name="page" value="1">
+        <input type="hidden" name="sheet" value="{{ current_sheet }}">
+        <input type="hidden" name="dedupe_field" value="{{ dedupe_field }}">
+        <input type="hidden" name="dedupe_timestamp" value="{{ dedupe_timestamp }}">
+        <input type="hidden" name="group_by_period" value="{{ group_by_period }}">
+        <input type="hidden" name="timestamp_column" value="{{ timestamp_column }}">
+
+        <div class="toolbar-row">
+          <select name="sort_column">
+            <option value="">No sorting</option>
+            {% for col in timestamp_columns %}
+            <option value="{{ col }}" {% if sort_column==col %}selected{% endif %}>{{ col }}</option>
+            {% endfor %}
+          </select>
+
+          <select name="sort_order">
+            <option value="desc" {% if sort_order=="desc" %}selected{% endif %}>Newest First (Descending)</option>
+            <option value="asc" {% if sort_order=="asc" %}selected{% endif %}>Oldest First (Ascending)</option>
+          </select>
+
+          <button type="submit" id="apply-sorting-btn">Apply Sorting</button>
+
+          {% if sort_column %}
+          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}" class="clear-grouping"
+            style="padding: 6px 10px; border-radius: 4px;">Clear Sorting</a>
+          {% endif %}
+        </div>
+        <div id="sort-validation-info" class="validation-info" style="display: none;"></div>
       </form>
     </div>
 
@@ -220,6 +262,8 @@
         <input type="hidden" name="sheet" value="{{ current_sheet }}">
         <input type="hidden" name="dedupe_field" value="{{ dedupe_field }}">
         <input type="hidden" name="dedupe_timestamp" value="{{ dedupe_timestamp }}">
+        <input type="hidden" name="sort_column" value="{{ sort_column }}">
+        <input type="hidden" name="sort_order" value="{{ sort_order }}">
 
         <div class="toolbar-row">
           <select name="group_by_period">
@@ -238,7 +282,7 @@
           <button type="submit" id="apply-grouping-btn">Apply Grouping</button>
 
           {% if grouped %}
-          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}" class="clear-grouping"
+          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}" class="clear-grouping"
             style="padding: 6px 10px; border-radius: 4px;">Clear Grouping</a>
           {% endif %}
         </div>
@@ -252,6 +296,8 @@
       <input type="hidden" name="timestamp_column" value="{{ timestamp_column }}">
       <input type="hidden" name="dedupe_field" value="{{ dedupe_field }}">
       <input type="hidden" name="dedupe_timestamp" value="{{ dedupe_timestamp }}">
+      <input type="hidden" name="sort_column" value="{{ sort_column }}">
+      <input type="hidden" name="sort_order" value="{{ sort_order }}">
       <input type="hidden" name="page" value="1">
       <input type="hidden" name="sheet" value="{{ current_sheet }}">
 
@@ -280,6 +326,14 @@
     {% if grouped %}
     <div class="status-info">
       📊 Data grouped by {{ group_by_period }} using column "{{ timestamp_column }}"
+      {% if sort_order == 'asc' %} (sorted oldest first){% else %} (sorted newest first){% endif %}
+    </div>
+    {% endif %}
+    
+    {% if sort_column and not grouped and not deduplicated %}
+    <div class="status-info" style="background: #fff8e1; color: #f57c00; border-left: 4px solid #ff9800;">
+      🔄 <strong>Sorted View:</strong> Data sorted by "{{ sort_column }}" timestamp 
+      {% if sort_order == 'asc' %}(oldest first){% else %}(newest first){% endif %}
     </div>
     {% endif %}
 
@@ -345,6 +399,8 @@
         <input type="hidden" name="timestamp_column" value="{{ timestamp_column }}">
         <input type="hidden" name="dedupe_field" value="{{ dedupe_field }}">
         <input type="hidden" name="dedupe_timestamp" value="{{ dedupe_timestamp }}">
+        <input type="hidden" name="sort_column" value="{{ sort_column }}">
+        <input type="hidden" name="sort_order" value="{{ sort_order }}">
         <input type="hidden" name="sheet" value="{{ current_sheet }}">
         <button name="page" value="{{ 1 }}" {% if page==1 %}disabled{% endif %}>&laquo; First</button>
         <button name="page" value="{{ page - 1 }}" {% if page <=1 %}disabled{% endif %}>Prev</button>
@@ -367,6 +423,10 @@
       const dedupeFieldSelect = document.querySelector('select[name="dedupe_field"]');
       const dedupeTimestampSelect = document.querySelector('select[name="dedupe_timestamp"]');
       const dedupeValidationInfo = document.getElementById('dedupe-validation-info');
+      
+      // Sorting validation
+      const sortColumnSelect = document.querySelector('select[name="sort_column"]');
+      const sortValidationInfo = document.getElementById('sort-validation-info');
 
       function validateTimestampColumn() {
         const column = timestampSelect.value;
@@ -434,6 +494,38 @@
           });
       }
 
+      function validateSortColumn() {
+        const column = sortColumnSelect.value;
+
+        if (!column) {
+          sortValidationInfo.style.display = 'none';
+          return;
+        }
+
+        // Show loading state
+        sortValidationInfo.className = 'validation-info validation-warning';
+        sortValidationInfo.textContent = 'Validating sort column...';
+        sortValidationInfo.style.display = 'block';
+
+        // Validate the column
+        const currentSheet = document.querySelector('input[name="sheet"]')?.value || '';
+        fetch(`/api/validate-timestamp?column=${encodeURIComponent(column)}&sheet=${encodeURIComponent(currentSheet)}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.valid) {
+              sortValidationInfo.className = 'validation-info validation-success';
+              sortValidationInfo.textContent = `✓ Ready to sort by "${column}" timestamp`;
+            } else {
+              sortValidationInfo.className = 'validation-info validation-error';
+              sortValidationInfo.textContent = `✗ ${data.message}`;
+            }
+          })
+          .catch(error => {
+            sortValidationInfo.className = 'validation-info validation-error';
+            sortValidationInfo.textContent = 'Error validating sort column';
+          });
+      }
+
       // Validate when timestamp column or period changes
       if (timestampSelect && periodSelect) {
         timestampSelect.addEventListener('change', validateTimestampColumn);
@@ -453,6 +545,16 @@
         // Initial validation if values are already selected
         if (dedupeFieldSelect.value && dedupeTimestampSelect.value) {
           validateDedupeTimestampColumn();
+        }
+      }
+
+      // Validate when sort column changes
+      if (sortColumnSelect) {
+        sortColumnSelect.addEventListener('change', validateSortColumn);
+
+        // Initial validation if value is already selected
+        if (sortColumnSelect.value) {
+          validateSortColumn();
         }
       }
     });
