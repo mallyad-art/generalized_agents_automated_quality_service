@@ -157,11 +157,13 @@
         </p>
       </div>
     </div>
-    
+
     <!-- Dashboard Overview -->
-    <div style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #1976d2;">
+    <div
+      style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #1976d2;">
       <p style="margin: 0; color: #1976d2; font-size: 14px;">
-        📊 <strong>Interactive Data Dashboard:</strong> Search, filter, sort, and analyze your automated quality data with real-time insights. 
+        📊 <strong>Interactive Data Dashboard:</strong> Search, filter, sort, and analyze your automated quality data
+        with real-time insights.
         View individual records or group by time periods to track trends and patterns.
       </p>
     </div>
@@ -191,7 +193,8 @@
       <p style="margin: 4px 0 8px 0; font-size: 12px; color: #666;">
         Convert from "all individual runs" to "distinct records" by keeping only the latest run per unique key
       </p>
-      <div style="background: rgba(25, 118, 210, 0.1); padding: 8px; border-radius: 4px; margin-bottom: 8px; font-size: 12px;">
+      <div
+        style="background: rgba(25, 118, 210, 0.1); padding: 8px; border-radius: 4px; margin-bottom: 8px; font-size: 12px;">
         <strong>🎯 Use Case:</strong> Show latest status per unique key, removing duplicate runs and retries.
       </div>
       <form method="get" action="/">
@@ -201,6 +204,7 @@
         <input type="hidden" name="sheet" value="{{ current_sheet }}">
         <input type="hidden" name="group_by_period" value="{{ group_by_period }}">
         <input type="hidden" name="timestamp_column" value="{{ timestamp_column }}">
+        <input type="hidden" name="day_filter" value="{{ day_filter }}">
         <input type="hidden" name="sort_column" value="{{ sort_column }}">
         <input type="hidden" name="sort_order" value="{{ sort_order }}">
 
@@ -222,7 +226,7 @@
           <button type="submit" id="apply-dedupe-btn">Show Distinct Records</button>
 
           {% if deduplicated %}
-          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}"
+          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}&day_filter={{ day_filter }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}"
             class="clear-grouping" style="padding: 6px 10px; border-radius: 4px;">Show All Runs</a>
           {% endif %}
         </div>
@@ -236,7 +240,8 @@
       <p style="margin: 4px 0 8px 0; font-size: 12px; color: #666;">
         Sort data by timestamp column - works for individual runs, deduplication, and grouping views
       </p>
-      <div style="background: rgba(245, 124, 0, 0.1); padding: 8px; border-radius: 4px; margin-bottom: 8px; font-size: 12px;">
+      <div
+        style="background: rgba(245, 124, 0, 0.1); padding: 8px; border-radius: 4px; margin-bottom: 8px; font-size: 12px;">
         <strong>⏰ Use Case:</strong> Sort data chronologically - newest first (default) or oldest first.
       </div>
       <form method="get" action="/">
@@ -248,6 +253,7 @@
         <input type="hidden" name="dedupe_timestamp" value="{{ dedupe_timestamp }}">
         <input type="hidden" name="group_by_period" value="{{ group_by_period }}">
         <input type="hidden" name="timestamp_column" value="{{ timestamp_column }}">
+        <input type="hidden" name="day_filter" value="{{ day_filter }}">
 
         <div class="toolbar-row">
           <select name="sort_column">
@@ -265,7 +271,7 @@
           <button type="submit" id="apply-sorting-btn">Apply Sorting</button>
 
           {% if sort_column %}
-          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}"
+          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}&day_filter={{ day_filter }}"
             class="clear-grouping" style="padding: 6px 10px; border-radius: 4px;">Clear Sorting</a>
           {% endif %}
         </div>
@@ -276,7 +282,8 @@
     <!-- Grouping Controls -->
     <div class="grouping-controls">
       <h3>📊 Time-based Grouping (Optional)</h3>
-      <div style="background: rgba(76, 175, 80, 0.1); padding: 8px; border-radius: 4px; margin-bottom: 8px; font-size: 12px;">
+      <div
+        style="background: rgba(76, 175, 80, 0.1); padding: 8px; border-radius: 4px; margin-bottom: 8px; font-size: 12px;">
         <strong>📈 Use Case:</strong> Group data by time periods to analyze trends and patterns.
       </div>
       <form method="get" action="/">
@@ -306,7 +313,7 @@
           <button type="submit" id="apply-grouping-btn">Apply Grouping</button>
 
           {% if grouped %}
-          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}"
+          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}&day_filter={{ day_filter }}"
             class="clear-grouping" style="padding: 6px 10px; border-radius: 4px;">Clear Grouping</a>
           {% endif %}
         </div>
@@ -314,10 +321,52 @@
       </form>
     </div>
 
+    <!-- Day Filter Controls (Optional) -->
+    <div class="toolbar-section">
+      <h3>📅 Day Filter (Optional)</h3>
+      <p style="margin: 0 0 12px 0; color: #666; font-size: 13px;">
+        Filter to show only records from specific time periods based on timestamp values
+      </p>
+      <form class="toolbar" method="get" action="/">
+        <input type="hidden" name="q" value="{{ q }}">
+        <input type="hidden" name="page_size" value="{{ page_size }}">
+        <input type="hidden" name="sheet" value="{{ current_sheet }}">
+        <input type="hidden" name="group_by_period" value="{{ group_by_period }}">
+        <input type="hidden" name="dedupe_field" value="{{ dedupe_field }}">
+        <input type="hidden" name="dedupe_timestamp" value="{{ dedupe_timestamp }}">
+        <input type="hidden" name="sort_column" value="{{ sort_column }}">
+        <input type="hidden" name="sort_order" value="{{ sort_order }}">
+
+        <div class="toolbar-row">
+          <select name="timestamp_column">
+            <option value="">Select timestamp column</option>
+            {% for col in timestamp_columns %}
+            <option value="{{ col }}" {% if timestamp_column==col %}selected{% endif %}>{{ col }}</option>
+            {% endfor %}
+          </select>
+
+          <select name="day_filter">
+            <option value="">Show all records (no time filter)</option>
+            <option value="today" {% if day_filter=="today" %}selected{% endif %}>Today only (since midnight)</option>
+            <option value="yesterday" {% if day_filter=="yesterday" %}selected{% endif %}>Yesterday only</option>
+            <option value="past_7" {% if day_filter=="past_7" %}selected{% endif %}>Past 7 days (including today)</option>
+          </select>
+
+          <button type="submit" id="apply-day-filter-btn">Apply Time Filter</button>
+
+          {% if day_filter %}
+          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}"
+            class="clear-grouping" style="padding: 6px 10px; border-radius: 4px;">Show All Records</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+
     <!-- Search and Pagination Controls -->
     <form class="toolbar" method="get" action="/">
       <input type="hidden" name="group_by_period" value="{{ group_by_period }}">
       <input type="hidden" name="timestamp_column" value="{{ timestamp_column }}">
+      <input type="hidden" name="day_filter" value="{{ day_filter }}">
       <input type="hidden" name="dedupe_field" value="{{ dedupe_field }}">
       <input type="hidden" name="dedupe_timestamp" value="{{ dedupe_timestamp }}">
       <input type="hidden" name="sort_column" value="{{ sort_column }}">
@@ -358,6 +407,17 @@
     </div>
     {% endif %}
 
+    {% if day_filter %}
+    <div class="status-info" style="background: #e3f2fd; color: #1976d2; border-left: 4px solid #2196f3;">
+      � <strong>Time Filter Active:</strong>
+      {% if day_filter == 'today' %}Showing only records from today (since midnight)
+      {% elif day_filter == 'yesterday' %}Showing only records from yesterday
+      {% elif day_filter == 'past_7' %}Showing records from the past 7 days (including today)
+      {% endif %}
+      based on timestamps in column "{{ timestamp_column }}"
+    </div>
+    {% endif %}
+
     {% if sort_column and not grouped and not deduplicated %}
     <div class="status-info" style="background: #fff8e1; color: #f57c00; border-left: 4px solid #ff9800;">
       🔄 <strong>Sorted View:</strong> Data sorted by "{{ sort_column }}" timestamp
@@ -384,7 +444,8 @@
     {% endif %}
 
     <!-- Data Summary -->
-    <div style="background: #f8f9fa; padding: 16px; border-radius: 6px; margin-bottom: 16px; border-left: 4px solid #6c757d;">
+    <div
+      style="background: #f8f9fa; padding: 16px; border-radius: 6px; margin-bottom: 16px; border-left: 4px solid #6c757d;">
       <div style="font-weight: bold; margin-bottom: 8px; font-size: 16px;">
         📊 Showing {{ total }}
         {% if deduplicated %}
@@ -396,7 +457,7 @@
         {% endif %}
         {% if q and q.strip() %} matching "{{ q }}"{% endif %}
       </div>
-      
+
 
     </div>
 
@@ -434,6 +495,7 @@
         <input type="hidden" name="page_size" value="{{ page_size }}">
         <input type="hidden" name="group_by_period" value="{{ group_by_period }}">
         <input type="hidden" name="timestamp_column" value="{{ timestamp_column }}">
+        <input type="hidden" name="day_filter" value="{{ day_filter }}">
         <input type="hidden" name="dedupe_field" value="{{ dedupe_field }}">
         <input type="hidden" name="dedupe_timestamp" value="{{ dedupe_timestamp }}">
         <input type="hidden" name="sort_column" value="{{ sort_column }}">
@@ -446,7 +508,7 @@
         <button name="page" value="{{ pages }}" {% if page>= pages %}disabled{% endif %}>Last &raquo;</button>
       </form>
     </div>
-    
+
 
   </div>
 

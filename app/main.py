@@ -3,7 +3,7 @@ import math
 import re
 import json
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, Query, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -21,6 +21,10 @@ SHEETS_CONFIG = []
 SHEET_ID = os.environ.get("SHEET_ID", "")
 SHEET_TAB = os.environ.get("SHEET_TAB", "Sheet1")
 
+# Column transformation configuration
+COLUMN_TRANSFORMS_STR = os.environ.get("COLUMN_TRANSFORMS", "")
+COLUMN_TRANSFORMS = {}
+
 
 
 # Parse multi-sheet configuration
@@ -31,6 +35,15 @@ if SHEETS_CONFIG_STR:
     except json.JSONDecodeError as e:
         print(f"Error parsing SHEETS_CONFIG: {e}")
         SHEETS_CONFIG = []
+
+# Parse column transforms configuration
+if COLUMN_TRANSFORMS_STR:
+    try:
+        COLUMN_TRANSFORMS = json.loads(COLUMN_TRANSFORMS_STR)
+        print(f"Loaded {len(COLUMN_TRANSFORMS)} column transformations")
+    except json.JSONDecodeError as e:
+        print(f"Error parsing COLUMN_TRANSFORMS: {e}")
+        COLUMN_TRANSFORMS = {}
 
 
 
@@ -78,6 +91,22 @@ def is_url(text):
     url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
     return bool(re.search(url_pattern, str(text)))
 
+def apply_column_transform(column_name, value):
+    """Apply transformation to column value if configured"""
+    if pd.isna(value) or value == "" or not COLUMN_TRANSFORMS:
+        return value
+    # Check if this column has a transformation configured
+    if column_name in COLUMN_TRANSFORMS:
+        transform_template = COLUMN_TRANSFORMS[column_name]
+        value_str = str(value).strip()
+        # Skip if value is empty after stripping
+        if not value_str:
+            return value
+        # Replace {value} placeholder with actual value
+        transformed = transform_template.replace("{value}", value_str)
+        return transformed
+    return value
+
 def make_links_clickable(text):
     """Convert URLs in text to clickable HTML links"""
     if pd.isna(text) or text == "":
@@ -85,6 +114,40 @@ def make_links_clickable(text):
     text_str = str(text)
     url_pattern = r'(https?://[^\s<>"{}|\\^`\[\]]+)'
     return re.sub(url_pattern, r'<a href="\1" target="_blank">\1</a>', text_str)
+
+def filter_by_timestamp(df, timestamp_column, day_filter):
+    """Filter dataframe by timestamp column based on day filter"""
+    if not timestamp_column or timestamp_column not in df.columns or not day_filter:
+        return df
+    
+    # Convert timestamp column to datetime
+    try:
+        df_copy = df.copy()
+        df_copy[timestamp_column] = pd.to_datetime(df_copy[timestamp_column], errors='coerce')
+        
+        # Get current date (start of today)
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        if day_filter == "today":
+            start_date = today
+            end_date = today + timedelta(days=1)
+        elif day_filter == "yesterday":
+            start_date = today - timedelta(days=1)
+            end_date = today
+        elif day_filter == "past_7":
+            # Past 7 days including today
+            start_date = today - timedelta(days=7)
+            end_date = today + timedelta(days=1)  # Include today
+        else:
+            return df  # Unknown filter, return original
+        
+        # Filter the dataframe
+        mask = (df_copy[timestamp_column] >= start_date) & (df_copy[timestamp_column] < end_date)
+        return df_copy[mask]
+        
+    except Exception as e:
+        print(f"Error filtering by timestamp: {e}")
+        return df  # Return original data if filtering fails
 
 
 
@@ -107,12 +170,17 @@ def highlight_search_term(text, search_term):
     return highlighted
 
 def process_cell_content(text, search_term=None, column_name=None):
-    """Process cell content: make links clickable and highlight search terms"""
+    """Process cell content: apply column transforms, make links clickable and highlight search terms"""
     if pd.isna(text) or text == "":
         return ""
     
-    # Make URLs clickable
-    processed = make_links_clickable(text)
+    # First apply column transformations if configured
+    processed = text
+    if column_name and COLUMN_TRANSFORMS:
+        processed = apply_column_transform(column_name, processed)
+    
+    # Then make URLs clickable
+    processed = make_links_clickable(processed)
     
     # Highlight search terms (but avoid highlighting within HTML tags)
     if search_term and search_term.strip():
@@ -324,6 +392,14 @@ def load_sheet_df(sheet_name: str = None):
     except Exception as e:
         raise ValueError(f"Error loading sheet '{sheet_name}': {str(e)}")
 
+@app.get("/api/column-transforms")
+def get_column_transforms():
+    """Get configured column transformations"""
+    return JSONResponse({
+        "transforms": COLUMN_TRANSFORMS,
+        "enabled": len(COLUMN_TRANSFORMS) > 0
+    })
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "sheets": len(SHEETS_CONFIG)}
@@ -340,6 +416,7 @@ def api_data(
     page_size: int = PAGE_SIZE_DEFAULT,
     group_by_period: Optional[str] = None,
     timestamp_column: Optional[str] = None,
+    day_filter: Optional[str] = None,
     dedupe_field: Optional[str] = None,
     dedupe_timestamp: Optional[str] = None,
     sort_column: Optional[str] = None,
@@ -372,8 +449,16 @@ def api_data(
             # Keep original data when deduplication fails
             df = load_sheet_df(sheet)  # Reset to original data
     
+    # Apply day filter if provided (after deduplication, before grouping)
+    if day_filter and day_filter.strip() and timestamp_column and timestamp_column.strip():
+        try:
+            df = filter_by_timestamp(df, timestamp_column, day_filter)
+        except Exception as e:
+            if not error_message:
+                error_message = f"Error applying day filter: {str(e)}"
+    
     # Apply grouping if both parameters are provided and valid (grouping is optional)
-    # Note: grouping after deduplication if both are applied
+    # Note: grouping after deduplication and day filtering if both are applied
     if group_by_period and group_by_period.strip() and timestamp_column and timestamp_column.strip():
         # Validate group_by_period value
         if group_by_period not in ["day", "week"]:
@@ -543,6 +628,7 @@ def index(
     page_size: int = PAGE_SIZE_DEFAULT,
     group_by_period: Optional[str] = None,
     timestamp_column: Optional[str] = None,
+    day_filter: Optional[str] = None,
     dedupe_field: Optional[str] = None,
     dedupe_timestamp: Optional[str] = None,
     sort_column: Optional[str] = None,
@@ -590,8 +676,16 @@ def index(
             # Keep original data when deduplication fails
             df = original_df.copy()
     
+    # Apply day filter if provided (after deduplication, before grouping)
+    if day_filter and day_filter.strip() and timestamp_column and timestamp_column.strip():
+        try:
+            df = filter_by_timestamp(df, timestamp_column, day_filter)
+        except Exception as e:
+            if not error_message:
+                error_message = f"Error applying day filter: {str(e)}"
+    
     # Apply grouping if both parameters are provided and valid (grouping is optional)
-    # Note: grouping after deduplication if both are applied
+    # Note: grouping after deduplication and day filtering if both are applied
     grouped = False
     if group_by_period and group_by_period.strip() and timestamp_column and timestamp_column.strip():
         # Validate group_by_period value
@@ -652,6 +746,7 @@ def index(
         "timestamp_columns": timestamp_columns,
         "group_by_period": group_by_period or "",
         "timestamp_column": timestamp_column or "",
+        "day_filter": day_filter or "",
         "dedupe_field": dedupe_field or "",
         "dedupe_timestamp": dedupe_timestamp or "",
         "sort_column": sort_column or "",
@@ -662,5 +757,7 @@ def index(
         "original_count": original_count,
         "error_message": error_message,
         "available_sheets": get_available_sheets(),
-        "current_sheet": current_sheet
+        "current_sheet": current_sheet,
+        "column_transforms": COLUMN_TRANSFORMS,
+        "transforms_enabled": len(COLUMN_TRANSFORMS) > 0
     })

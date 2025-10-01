@@ -9,7 +9,8 @@ A lightweight FastAPI application that transforms any Google Sheet into a search
 - **Timestamp Sorting**: Sort data by timestamp columns with ascending/descending options
 - **Deduplication**: Remove duplicate runs, keeping latest by timestamp per unique key
 - **Clickable Links**: Automatically detects and converts URLs to clickable links
-
+- **Column Transforms**: Transform column values using templates (e.g., add prefixes/suffixes)
+- **Day Filtering (Optional)**: Filter data by specific time periods (today, yesterday, past 7 days)
 - **Time-based Grouping**: Group data by day/week based on timestamp columns
 - **REST API**: JSON endpoint for programmatic access to your sheet data
 - **Real-time Search**: Filter rows across all columns with instant results
@@ -209,7 +210,8 @@ User Request → Load Sheet → Validate Timestamp Column → Apply Sorting → 
   - `sort_column` - Timestamp column name for sorting
   - `sort_order` - Sort direction: "desc" (newest first, default) or "asc" (oldest first)
   - `group_by_period` - Group by time period: "day" or "week"
-  - `timestamp_column` - Column name containing timestamps for grouping
+  - `timestamp_column` - Column name containing timestamps for operations
+  - `day_filter` - (Optional) Filter by time period: "today", "yesterday", "past_7"
   - `dedupe_field` - Field to deduplicate by (e.g., "user_id", "email")
   - `dedupe_timestamp` - Timestamp field to determine latest record
 - `GET /api/deduplicate` - Dedicated deduplication endpoint with same parameters as `/api/data` plus `sort_order`
@@ -243,7 +245,36 @@ GET /api/deduplicate?dedupe_field=email&dedupe_timestamp=last_updated
 
 # Combine deduplication with search
 GET /api/data?dedupe_field=task_id&dedupe_timestamp=completed_at&q=passed
+
+# Combine day filtering with deduplication
+GET /api/data?dedupe_field=user_id&dedupe_timestamp=created_at&day_filter=today&timestamp_column=created_at
 ```
+
+### Day Filtering (Optional)
+Optionally filter your data to show only records from specific time periods based on timestamp values:
+
+```bash
+# Show only today's records (since midnight)
+GET /api/data?timestamp_column=created_at&day_filter=today
+
+# Show only yesterday's records  
+GET /api/data?timestamp_column=created_at&day_filter=yesterday
+
+# Show records from the past 7 days (including today)
+GET /api/data?timestamp_column=created_at&day_filter=past_7
+```
+
+**Available Time Filters:**
+- `today` - Records from today only (since midnight)
+- `yesterday` - Records from yesterday only
+- `past_7` - Records from the past 7 days (including today)
+
+**What it does:**
+- Filters records based on timestamp values in the selected column
+- Shows only records that fall within the specified time period
+- Combines with search, deduplication, and grouping features
+- Uses server timezone for consistent filtering
+- Gracefully handles invalid or missing timestamps
 
 ### Time-based Grouping
 
@@ -265,6 +296,9 @@ GET /api/data?group_by_period=week&timestamp_column=created_at
 
 # Combine deduplication with grouping
 GET /api/data?dedupe_field=user_id&dedupe_timestamp=created_at&group_by_period=day&timestamp_column=created_at
+
+# Combine day filtering with grouping (show past 7 days grouped by day)
+GET /api/data?day_filter=past_7&group_by_period=day&timestamp_column=created_at
 ```
 
 ### Timestamp Sorting
