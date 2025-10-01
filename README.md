@@ -454,7 +454,3 @@ services:
 3. Make your changes
 4. Add tests if applicable
 5. Submit a pull request
-
-## License
-
-This project is open source. Please check the LICENSE file for details.
