@@ -5,7 +5,7 @@ import json
 import pandas as pd
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, Query, HTTPException
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 import gspread
@@ -620,7 +620,12 @@ def api_deduplicate(
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
+def redirect_to_dashboard():
+    """Redirect root path to quality dashboard"""
+    return RedirectResponse(url="/quality-dashboard", status_code=302)
+
+@app.get("/quality-dashboard", response_class=HTMLResponse)
 def index(
     request: Request, 
     q: Optional[str] = None, 
