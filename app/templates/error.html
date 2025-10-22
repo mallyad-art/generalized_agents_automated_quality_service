@@ -30,13 +30,13 @@
     <div class="sheet-list">
       <h3>Available Sheets:</h3>
       {% for sheet in available_sheets %}
-        <a href="/?sheet={{ sheet.name }}" class="sheet-link">
+        <a href="/quality-dashboard?sheet={{ sheet.name }}" class="sheet-link">
           📊 {{ sheet.display_name }}
         </a>
       {% endfor %}
     </div>
     
-    <p><a href="/">← Back to Default Sheet</a></p>
+    <p><a href="/quality-dashboard">← Back to Default Sheet</a></p>
   </div>
 </body>
 </html>

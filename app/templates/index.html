@@ -178,7 +178,7 @@
         <span style="padding: 4px 8px; background: #4caf50; color: white; border-radius: 3px; font-size: 12px;">{{
           sheet.display_name }}</span>
         {% else %}
-        <a href="/?sheet={{ sheet.name }}&q={{ q }}&page_size={{ page_size }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}"
+        <a href="/quality-dashboard?sheet={{ sheet.name }}&q={{ q }}&page_size={{ page_size }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}"
           style="padding: 4px 8px; background: #f5f5f5; color: #1976d2; border-radius: 3px; font-size: 12px; text-decoration: none;">{{
           sheet.display_name }}</a>
         {% endif %}
@@ -197,7 +197,7 @@
         style="background: rgba(25, 118, 210, 0.1); padding: 8px; border-radius: 4px; margin-bottom: 8px; font-size: 12px;">
         <strong>🎯 Use Case:</strong> Show latest status per unique key, removing duplicate runs and retries.
       </div>
-      <form method="get" action="/">
+      <form method="get" action="/quality-dashboard">
         <input type="hidden" name="q" value="{{ q }}">
         <input type="hidden" name="page_size" value="{{ page_size }}">
         <input type="hidden" name="page" value="1">
@@ -226,7 +226,7 @@
           <button type="submit" id="apply-dedupe-btn">Show Distinct Records</button>
 
           {% if deduplicated %}
-          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}&day_filter={{ day_filter }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}"
+          <a href="/quality-dashboard?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}&day_filter={{ day_filter }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}"
             class="clear-grouping" style="padding: 6px 10px; border-radius: 4px;">Show All Runs</a>
           {% endif %}
         </div>
@@ -244,7 +244,7 @@
         style="background: rgba(245, 124, 0, 0.1); padding: 8px; border-radius: 4px; margin-bottom: 8px; font-size: 12px;">
         <strong>⏰ Use Case:</strong> Sort data chronologically - newest first (default) or oldest first.
       </div>
-      <form method="get" action="/">
+      <form method="get" action="/quality-dashboard">
         <input type="hidden" name="q" value="{{ q }}">
         <input type="hidden" name="page_size" value="{{ page_size }}">
         <input type="hidden" name="page" value="1">
@@ -271,7 +271,7 @@
           <button type="submit" id="apply-sorting-btn">Apply Sorting</button>
 
           {% if sort_column %}
-          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}&day_filter={{ day_filter }}"
+          <a href="/quality-dashboard?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}&day_filter={{ day_filter }}"
             class="clear-grouping" style="padding: 6px 10px; border-radius: 4px;">Clear Sorting</a>
           {% endif %}
         </div>
@@ -286,7 +286,7 @@
         style="background: rgba(76, 175, 80, 0.1); padding: 8px; border-radius: 4px; margin-bottom: 8px; font-size: 12px;">
         <strong>📈 Use Case:</strong> Group data by time periods to analyze trends and patterns.
       </div>
-      <form method="get" action="/">
+      <form method="get" action="/quality-dashboard">
         <input type="hidden" name="q" value="{{ q }}">
         <input type="hidden" name="page_size" value="{{ page_size }}">
         <input type="hidden" name="page" value="1">
@@ -313,7 +313,7 @@
           <button type="submit" id="apply-grouping-btn">Apply Grouping</button>
 
           {% if grouped %}
-          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}&day_filter={{ day_filter }}"
+          <a href="/quality-dashboard?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}&day_filter={{ day_filter }}"
             class="clear-grouping" style="padding: 6px 10px; border-radius: 4px;">Clear Grouping</a>
           {% endif %}
         </div>
@@ -327,7 +327,7 @@
       <p style="margin: 0 0 12px 0; color: #666; font-size: 13px;">
         Filter to show only records from specific time periods based on timestamp values
       </p>
-      <form class="toolbar" method="get" action="/">
+      <form class="toolbar" method="get" action="/quality-dashboard">
         <input type="hidden" name="q" value="{{ q }}">
         <input type="hidden" name="page_size" value="{{ page_size }}">
         <input type="hidden" name="sheet" value="{{ current_sheet }}">
@@ -349,13 +349,14 @@
             <option value="">Show all records (no time filter)</option>
             <option value="today" {% if day_filter=="today" %}selected{% endif %}>Today only (since midnight)</option>
             <option value="yesterday" {% if day_filter=="yesterday" %}selected{% endif %}>Yesterday only</option>
-            <option value="past_7" {% if day_filter=="past_7" %}selected{% endif %}>Past 7 days (including today)</option>
+            <option value="past_7" {% if day_filter=="past_7" %}selected{% endif %}>Past 7 days (including today)
+            </option>
           </select>
 
           <button type="submit" id="apply-day-filter-btn">Apply Time Filter</button>
 
           {% if day_filter %}
-          <a href="/?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}"
+          <a href="/quality-dashboard?q={{ q }}&page_size={{ page_size }}&sheet={{ current_sheet }}&group_by_period={{ group_by_period }}&timestamp_column={{ timestamp_column }}&dedupe_field={{ dedupe_field }}&dedupe_timestamp={{ dedupe_timestamp }}&sort_column={{ sort_column }}&sort_order={{ sort_order }}"
             class="clear-grouping" style="padding: 6px 10px; border-radius: 4px;">Show All Records</a>
           {% endif %}
         </div>
@@ -363,7 +364,7 @@
     </div>
 
     <!-- Search and Pagination Controls -->
-    <form class="toolbar" method="get" action="/">
+    <form class="toolbar" method="get" action="/quality-dashboard">
       <input type="hidden" name="group_by_period" value="{{ group_by_period }}">
       <input type="hidden" name="timestamp_column" value="{{ timestamp_column }}">
       <input type="hidden" name="day_filter" value="{{ day_filter }}">
@@ -490,7 +491,7 @@
     </table>
 
     <div class="pagination">
-      <form method="get" action="/">
+      <form method="get" action="/quality-dashboard">
         <input type="hidden" name="q" value="{{ q }}">
         <input type="hidden" name="page_size" value="{{ page_size }}">
         <input type="hidden" name="group_by_period" value="{{ group_by_period }}">
