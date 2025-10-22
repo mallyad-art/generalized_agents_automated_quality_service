@@ -620,10 +620,14 @@ def api_deduplicate(
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
 
-@app.get("/")
-def redirect_to_dashboard():
-    """Redirect root path to quality dashboard"""
-    return RedirectResponse(url="/quality-dashboard", status_code=302)
+@app.get("/", response_class=HTMLResponse)
+def home(request: Request):
+    """Auto QC Service Home Page"""
+    return templates.TemplateResponse("home.html", {
+        "request": request
+    })
+
+
 
 @app.get("/quality-dashboard", response_class=HTMLResponse)
 def index(

@@ -1,0 +1,165 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Auto QC Service - Generalized Agents</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      padding: 48px;
+      text-align: center;
+      max-width: 600px;
+      margin: 24px;
+    }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 24px;
+    }
+
+    h1 {
+      color: #2d3748;
+      font-size: 32px;
+      font-weight: 700;
+      margin: 0 0 16px 0;
+    }
+
+    .subtitle {
+      color: #718096;
+      font-size: 18px;
+      margin: 0 0 40px 0;
+      line-height: 1.5;
+    }
+
+    .buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 32px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 32px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 16px;
+      transition: all 0.2s ease;
+      border: none;
+      cursor: pointer;
+      gap: 12px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-secondary {
+      background: #f7fafc;
+      color: #4a5568;
+      border: 2px solid #e2e8f0;
+    }
+
+    .btn-secondary:hover {
+      background: #edf2f7;
+      border-color: #cbd5e0;
+      transform: translateY(-2px);
+    }
+
+    .icon {
+      font-size: 20px;
+    }
+
+    .description {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 24px;
+      margin: 32px 0;
+      border-left: 4px solid #667eea;
+    }
+
+    .description h3 {
+      color: #2d3748;
+      margin: 0 0 12px 0;
+      font-size: 18px;
+    }
+
+    .description p {
+      color: #718096;
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    @media (min-width: 640px) {
+      .buttons {
+        flex-direction: row;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <img src="/static/logo.svg" alt="Auto QC Logo" class="logo">
+    
+    <h1>Auto QC Service</h1>
+    <p class="subtitle">
+      Automated Quality Control for Generalized Agents<br>
+      Monitor execution runs and perform quality checks
+    </p>
+
+    <div class="description">
+      <h3>🤖 What is Auto QC?</h3>
+      <p>
+        Comprehensive automated quality control for generalized agents 
+        with real-time insights and self-service tools.
+      </p>
+    </div>
+
+    <div class="buttons">
+      <a href="/quality-dashboard" class="btn btn-primary">
+        <span class="icon">📊</span>
+        Auto-QC Dashboard
+      </a>
+      
+      <a href="/quality-checks" class="btn btn-secondary">
+        <span class="icon">🔧</span>
+        Auto-QC Self-Service Tool
+      </a>
+    </div>
+
+    <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
+      <p style="color: #a0aec0; font-size: 14px; margin: 0;">
+        Generalized Agents • Automated Quality Control Platform
+      </p>
+    </div>
+  </div>
+</body>
+
+</html>
