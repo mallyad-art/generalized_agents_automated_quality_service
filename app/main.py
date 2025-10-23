@@ -629,6 +629,13 @@ def home(request: Request):
 
 
 
+@app.get("/documentation", response_class=HTMLResponse)
+def documentation(request: Request):
+    """Documentation Page"""
+    return templates.TemplateResponse("docs.html", {
+        "request": request
+    })
+
 @app.get("/quality-dashboard", response_class=HTMLResponse)
 def index(
     request: Request, 
