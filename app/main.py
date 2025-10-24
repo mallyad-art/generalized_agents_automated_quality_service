@@ -104,6 +104,7 @@ def apply_column_transform(column_name, value):
             return value
         # Replace {value} placeholder with actual value
         transformed = transform_template.replace("{value}", value_str)
+        print(f"DEBUG: Transformed column '{column_name}': '{value_str}' -> '{transformed}'")
         return transformed
     return value
 
@@ -397,7 +398,12 @@ def get_column_transforms():
     """Get configured column transformations"""
     return JSONResponse({
         "transforms": COLUMN_TRANSFORMS,
-        "enabled": len(COLUMN_TRANSFORMS) > 0
+        "enabled": len(COLUMN_TRANSFORMS) > 0,
+        "env_var": COLUMN_TRANSFORMS_STR,
+        "debug_info": {
+            "transforms_count": len(COLUMN_TRANSFORMS),
+            "transforms_keys": list(COLUMN_TRANSFORMS.keys()) if COLUMN_TRANSFORMS else []
+        }
     })
 
 @app.get("/api/health")

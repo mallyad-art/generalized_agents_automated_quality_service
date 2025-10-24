@@ -16,5 +16,10 @@ ENV SHEET_TAB="Sheet1"
 ENV CACHE_TTL_SEC="60"
 ENV PAGE_SIZE_DEFAULT="25"
 
+# Column transformations (JSON format) - Optional
+# Transform column values using templates with {value} placeholder
+# Example: ENV COLUMN_TRANSFORMS='{"run_id": "https://github.com/org/repo/actions/runs/{value}", "user": "@{value}"}'
+ENV COLUMN_TRANSFORMS='{"commit_id": "https://github.com/Turing-Generalized-Agents/google-agents-colabs/commit/{value}"}'
+
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
