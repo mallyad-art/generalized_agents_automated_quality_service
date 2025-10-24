@@ -720,12 +720,20 @@ def index(
                     df = original_df.copy()
     
     # Apply sorting if not grouped or deduplicated (they handle their own sorting)
-    if not grouped and not deduplicated and sort_column and sort_column.strip():
-        try:
-            df = apply_timestamp_sorting(df, sort_column, sort_order)
-        except ValueError as e:
-            if not error_message:  # Don't overwrite other errors
-                error_message = str(e)
+    if not grouped and not deduplicated:
+        # Use provided sort column or default to first available timestamp column
+        default_sort_column = sort_column
+        if not default_sort_column or not default_sort_column.strip():
+            # Auto-select first timestamp column for default sorting (newest first)
+            if timestamp_columns:
+                default_sort_column = timestamp_columns[0]
+        
+        if default_sort_column and default_sort_column.strip():
+            try:
+                df = apply_timestamp_sorting(df, default_sort_column, sort_order)
+            except ValueError as e:
+                if not error_message:  # Don't overwrite other errors
+                    error_message = str(e)
     
     # Apply search filter (works on both grouped and ungrouped data)
     if q and q.strip():
